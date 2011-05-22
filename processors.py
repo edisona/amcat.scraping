@@ -19,6 +19,7 @@
 """This module contains the main scraping-logic. All scrapers have to inherit
 from BaseScraper, which provides an multithreaded scraping environment."""
 
+from lxml.html import builder
 from functools import partial
 from urllib import request
 from lxml import html
@@ -217,6 +218,17 @@ class HTTPScraper(Scraper):
         """`get` makes three attempts to retrieve the given url.
         
         PS: Blame VK. """
+        ht = 'Content-Type'
+
+        def _getenc(ro):
+            # Return charset (from HTTP-Headers). If not found, return None.
+            headers = dict(ro.getheaders())
+            if ht in headers:
+                for arg in headers[ht].split(';'):
+                    if arg.strip().startswith('charset='):
+                        return arg.strip()[8:]
+            return None
+
         try:
             fo = self.session.open(url)
             if not read:
@@ -226,6 +238,24 @@ class HTTPScraper(Scraper):
             else:
                 res = html.parse(fo).getroot()
 
+                # Set correct encoding
+                enc = _getenc(fo)
+                if enc:
+                    meta = res.cssselect('meta[http-equiv="%s"]' % ht)
+
+                    if meta:
+                        cont = meta.get('content')
+                        if not 'charset=' in cont:
+                            meta[0].set('content', '%s; charset=%s' % (cont, enc))
+                    else:
+                        meta = builder.META()
+                        meta.set('content', "charset='%s'" % enc)
+                        meta.set('http-equiv', ht)
+
+                        # Add to head-tag
+                        res.cssselect('head')[0].append(meta)
+                        
+                    
             print('Retrieved "%s"' % url)
             return res
 
