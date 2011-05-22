@@ -54,7 +54,7 @@ class Scraper(object):
         self.alive = False
         self.exporter = exporter
 
-        self.commit_queue = queue.Queue()
+        self.commit_queue = queue.Queue(maxsize=5000)
         self.min_threads = threading.activeCount()
         self.max_threads = max_threads + self.min_threads
 
