@@ -22,6 +22,7 @@ from scraping.toolkit import dictionary
 from scraping.html2text import html2text
 
 from lxml import html
+from html import parser
 
 import copy
 import types
@@ -111,7 +112,7 @@ class HTMLDocument(Document):
         if t is html.HtmlElement:
             try:
                 return html2text(html.tostring(val, encoding=str)).strip()
-            except html.parser.HTMLParseError:
+            except parser.HTMLParseError:
                 print('Warning: html2text failed!')
                 return 'Converting from HTML failed!'
 
