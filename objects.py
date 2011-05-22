@@ -109,7 +109,11 @@ class HTMLDocument(Document):
             return val.strip()
 
         if t is html.HtmlElement:
-            return html2text(html.tostring(val, encoding=str)).strip()
+            try:
+                return html2text(html.tostring(val, encoding=str)).strip()
+            except html.parser.HTMLParseError:
+                print('Warning: html2text failed!')
+                return 'Converting from HTML failed!'
 
         if t in (list, tuple, types.GeneratorType):
             """Check if all objects in list are HtmlElement and then proceed"""
