@@ -236,24 +236,29 @@ class HTTPScraper(Scraper):
             elif not lxml:
                 res = fo.read()
             else:
-                res = html.parse(fo).getroot()
-
-                # Set correct encoding
                 enc = _getenc(fo)
                 if enc:
-                    meta = res.cssselect('meta[http-equiv="%s"]' % ht)
+                    res = str(fo.read(), encoding=enc)
+                    res = html.fromstring(res)
+                else:
+                    res = html.parse(fo).getroot()
 
-                    if meta:
-                        cont = meta.get('content')
-                        if not 'charset=' in cont:
-                            meta[0].set('content', '%s; charset=%s' % (cont, enc))
-                    else:
-                        meta = builder.META()
-                        meta.set('content', "charset='%s'" % enc)
-                        meta.set('http-equiv', ht)
-
-                        # Add to head-tag
-                        res.cssselect('head')[0].append(meta)
+                # Set correct encoding
+                #enc = _getenc(fo)
+                #if enc:
+                #    meta = res.cssselect('meta[http-equiv="%s"]' % ht)
+                #
+                #    if meta:
+                #        cont = meta.get('content')
+                #        if not 'charset=' in cont:
+                #            meta[0].set('content', '%s; charset=%s' % (cont, enc))
+                #    else:
+                #        meta = builder.META()
+                #        meta.set('content', "charset='%s'" % enc)
+                #        meta.set('http-equiv', ht)
+                #
+                #        # Add to head-tag
+                #        res.cssselect('head')[0].append(meta)
                         
                     
             print('Retrieved "%s"' % url)
