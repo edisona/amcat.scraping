@@ -69,12 +69,19 @@ class JSONExporter(Exporter):
         self.io = io
         self.io.write('[\n')
 
+        self.first = True
+
     def commit(self, obj):
         super(JSONExporter, self).commit(obj)
 
         if obj._id is not None:
             # Already comitted
             return obj._id
+
+        if not self.first:
+            self.io.write('\n,')
+        else:
+            self.first = False
 
         parent = obj.getparent()
         pid = self.commit(parent) if parent else None
@@ -84,7 +91,6 @@ class JSONExporter(Exporter):
         props.update(dict(parent=pid, id=oid))
 
         json.dump(props, self.io, indent=2, cls=DatetimeAwareJSONEncoder)
-        self.io.write(',\n')
 
         return oid
 
