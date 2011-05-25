@@ -116,12 +116,13 @@ class NuScraper(GoogleScraper):
 
                         ca.url = url
                         ca.medium = 257
-                        ca.author = li.cssselect('strong')[0].text_content().strip()
 
                         try:
                             ca.date = toolkit.readDate(li.cssselect('.tijdsverschil')[0].text)
                         except IndexError:
                             continue
+
+                        ca.author = li.cssselect('strong')[0].text_content().strip()
 
                         try:
                             ca.text = li.find_class('reactie-body')[0]
