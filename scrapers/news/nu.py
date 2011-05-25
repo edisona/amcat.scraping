@@ -115,12 +115,18 @@ class NuScraper(GoogleScraper):
                         ca = art.copy()
 
                         ca.url = url
-                        ca.date = toolkit.readDate(li.cssselect('.tijdsverschil')[0].text)
                         ca.medium = 257
+
+                        try:
+                            ca.date = toolkit.readDate(li.cssselect('.tijdsverschil')[0].text)
+                        except IndexError:
+                            print('date')
+                            print(html.tostring(li))
 
                         try:
                             ca.author = li.cssselect('strong')[0].text_content().strip()
                         except IndexError:
+                            print('author')
                             print(html.tostring(li))
 
                         try:
