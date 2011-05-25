@@ -63,7 +63,7 @@ class NuScraper(GoogleScraper):
                     lpage = int(start) if int(start) > lpage else lpage
 
                 for i in range(((lpage+ppp)//ppp)+1):
-                    yield '{url}?pageStart={start}'.format(url=url, start=(i*ppp)+1)
+                    yield '{url}?pageStart={start}#{page}'.format(url=url, start=(i*ppp)+1, page=i)
             else:
                 yield url
         
@@ -98,7 +98,7 @@ class NuScraper(GoogleScraper):
         if not nujij:
             iframe = art.doc.cssselect('iframe.NUjijButton')
             if iframe:
-                apidoc = self.get(iframe[0].get('src').replace("&amp;", '&'))
+                apidoc = self.get(iframe[0].get('src').replace("&amp;", '&'), log=False)
                 nujij = apidoc.cssselect('a')
 
         if nujij:
@@ -115,13 +115,17 @@ class NuScraper(GoogleScraper):
                         ca = art.copy()
 
                         ca.url = url
-                        ca.author = li.cssselect('strong')[0].text_content().strip()
                         ca.date = toolkit.readDate(li.cssselect('.tijdsverschil')[0].text)
                         ca.medium = 257
 
                         try:
+                            ca.author = li.cssselect('strong')[0].text_content().strip()
+                        except IndexError:
+                            print(html.tostring(li))
+
+                        try:
                             ca.text = li.find_class('reactie-body')[0]
-                        except:
+                        except IndexError:
                             ca.text = '[Reactie verborgen]'
 
                         yield ca
@@ -132,5 +136,6 @@ if __name__ == '__main__':
     ex = JSONExporter(open('/home/martijn/nu.json', 'w'))
     sc = NuScraper(ex)
 
-    sc.scrape(date(2011, 5, 20))
+    for i in range(3, 20):
+        sc.scrape(date(2011, 5, i))
     sc.quit()

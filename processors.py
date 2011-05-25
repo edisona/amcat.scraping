@@ -212,7 +212,7 @@ class HTTPScraper(Scraper):
         else:
             for doc in docs: yield doc
 
-    def get(self, url, read=True, lxml=True, encoding=None, attempt=0):
+    def get(self, url, read=True, lxml=True, encoding=None, log=True, attempt=0):
         """`get` makes three attempts to retrieve the given url.
         
         PS: Blame VK. """
@@ -240,8 +240,9 @@ class HTTPScraper(Scraper):
                     res = html.fromstring(res)
                 else:
                     res = html.parse(fo).getroot()                        
-                    
-            print('Retrieved "%s"' % urllib.parse.unquote(url))
+            
+            if log:
+                print('Retrieved "%s"' % urllib.parse.unquote(url))
             return res
 
         except urllib.error.URLError as e:
