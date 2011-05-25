@@ -24,6 +24,8 @@ from functools import partial
 from urllib import request
 from lxml import html
 
+from scraping import objects
+
 import os, time
 import configparser
 import queue
@@ -68,7 +70,6 @@ class Scraper(object):
     def _commit(self):
         """This function commits all documents/comments in commit_queue. To
         stop the loop, call `quit`."""
-        print('start!')
         while not self.commit_queue.empty() or self.alive:
             # Keep running until all articles are committed, despite not
             # being alive. 
@@ -211,7 +212,7 @@ class HTTPScraper(Scraper):
         else:
             for doc in docs: yield doc
 
-    def get(self, url, read=True, lxml=True, attempt=0):
+    def get(self, url, read=True, lxml=True, encoding=None, attempt=0):
         """`get` makes three attempts to retrieve the given url.
         
         PS: Blame VK. """
@@ -233,20 +234,68 @@ class HTTPScraper(Scraper):
             elif not lxml:
                 res = fo.read()
             else:
-                enc = _getenc(fo)
+                enc = encoding or _getenc(fo)
                 if enc:
                     res = str(fo.read(), encoding=enc)
                     res = html.fromstring(res)
                 else:
                     res = html.parse(fo).getroot()                        
                     
-            print('Retrieved "%s"' % url)
+            print('Retrieved "%s"' % urllib.parse.unquote(url))
             return res
 
-        except urllib.error.URLError as e:            
+        except urllib.error.URLError as e:
             if attempt > 3:
                 raise(e)
 
             time.sleep(1.5)
                 
             return self.get(url, attempt=attempt+1, read=read, lxml=lxml)
+
+class GoogleScraper(HTTPScraper):
+    def __init__(self, exporter, max_threads=None, pages_per_search=100):
+        super(GoogleScraper, self).__init__(exporter, max_threads=max_threads)
+
+        # Initialize cookies
+        self.get('http://www.google.nl')
+
+        self.google_url = 'http://www.google.nl/search?'
+        self.pps = pages_per_search
+
+    def _createSession(self):
+        s = super(GoogleScraper, self)._createSession()
+        s.addheaders = [('User-agent', 'Mozilla/5.0')]
+              
+        return s
+
+    def _genurl(self, term, site, page=0):
+        q = term + ' site:%s' % site
+
+        query = {
+            'num' : self.pps,
+            'hl' : 'nl',
+            'btnG' : 'Zoeken',
+            'q' : q,
+            'start' : page * self.pps
+        }
+
+        return self.google_url + urllib.parse.urlencode(query)
+
+    def formatTerm(self, date):
+        pass
+
+    def getPages(self, date, page=0):
+        term = self.formatTerm(date)
+        url = self._genurl(term, self.site, page)
+        
+        results = self.get(url).cssselect('h3.r > a.l')
+        for a in results:
+            d = objects.HTMLDocument()
+            d.url = a.get('href')
+            d.date = date
+
+            yield d
+
+        if len(results) == self.pps:
+            for d in self.getPages(date, page=page+1):
+                yield d
