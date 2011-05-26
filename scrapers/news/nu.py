@@ -75,6 +75,7 @@ class NuScraper(GoogleScraper):
         except:
             art.section = 'Onbekend'
 
+        art.medium = 231
         art.headline = doc.cssselect('h1')[0].text.strip()
         doc.cssselect('#datestamp')[0].drop_tree()
         doc.cssselect('h1')[0].drop_tree()
@@ -113,6 +114,7 @@ class NuScraper(GoogleScraper):
                             continue
 
                         ca = art.copy()
+                        ca.medium = 257
                         ca.url = url
 
                         try:
