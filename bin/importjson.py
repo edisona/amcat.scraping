@@ -1,6 +1,22 @@
 #!/usr/bin/python2.6
 import json
 import sys
+import time
+
+try:
+    unicode
+except NameError:
+    unicode = str
+
+try:
+    next
+except NameError:
+    next = lambda gen: gen.next()
+
+try:
+    from io import StringIO as sio
+except:
+    from stringIO import StringIO as io
 
 from amcat.db import dbtoolkit; db=dbtoolkit.amcatDB()
 from amcat.model.article import Article, ArticleText, ArticlePost
@@ -9,22 +25,11 @@ PROPS = ['headline', 'byline', 'section', 'date', 'pagenr',
          'url', 'externalid', 'text', 'medium']
 
 BATCH = int(sys.argv[1])
-
-def parse(js):
-    index = {}
-    tree = {}
-
-    for doc in js:
-        index[doc['id']] = doc
-
-        if doc['parent'] is not None:
-            tree[doc['parent']].append(doc['id'])
-        else:
-            tree[doc['id']] = []
-
-    return index, tree
+IDS = {}
 
 def create_article(art):
+    aid, pid = art['id'], art['parent']
+
     del art['id']
     del art['parent']
 
@@ -41,32 +46,47 @@ def create_article(art):
     text = args['text']
     del args['text']
 
-    id = Article.create(db, batch=BATCH, **args).id
+    new_aid = Article.create(db, batch=BATCH, **args).id
     ArticleText.create(db, article=id, text=text, type=2, insertuserid=2, encoding=2)
 
-    return id
+    IDS[aid] = new_aid
+    if pid is not None:
+        pid = IDS[pid]
+        print(pid, new_aid)
+        create_comment(pid, new_aid)
+
+    return aid
 
 def create_comment(pid, cid):
     ArticlePost.create(db, article=cid, parent=pid)
 
 def main(path):
-    js = json.load(open(path))
-    print('JSON loaded')
-    index, tree = parse(js)
-    print('Articles parsed')
+    js = open(path)
 
-    for j, (parent, children) in enumerate(tree.items()):
-        parent = index[parent]
-        children = map(lambda i: index[i], children)
+    count = 0
+    io = sio()
+    for l in js:
+        if l.startswith('}'):
+            io.write('}')
 
-        pid = create_article(parent)
-        for c in children:
-            cid = create_article(c)
-            create_comment(pid, cid)
+            io.seek(0)
+            art = json.load(io)
+            io = sio()
 
-        print(j+1, '/', len(tree))
+            create_article(art)
 
-        db.commit()
+            count += 1;
+        elif l.startswith('['):
+            pass
+        elif l.startswith(']'):
+            pass
+        else:
+            io.write(l)
+
+        if not count % 500:
+            print(count)
+            db.commit()
+    db.commit()
 
 if __name__ == '__main__':
     main(sys.argv[2])
