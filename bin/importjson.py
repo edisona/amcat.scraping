@@ -9,7 +9,6 @@ PROPS = ['headline', 'byline', 'section', 'date', 'pagenr',
          'url', 'externalid', 'text', 'medium']
 
 BATCH = int(sys.argv[1])
-MEDIUM = int(sys.argv[2])
 
 def parse(js):
     index = {}
@@ -70,4 +69,4 @@ def main(path):
         db.commit()
 
 if __name__ == '__main__':
-    main(sys.argv[3])
+    main(sys.argv[2])
