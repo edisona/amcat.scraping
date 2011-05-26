@@ -71,9 +71,9 @@ class NuScraper(GoogleScraper):
         art.text = doc = art.doc.cssselect('#leadarticle')[0]
 
         try:
-            art.category = art._doc.cssselect('li.selected > a')[0].text
+            art.section = art._doc.cssselect('li.selected > a')[0].text
         except:
-            art.category = 'Onbekend'
+            art.section = 'Onbekend'
 
         art.headline = doc.cssselect('h1')[0].text.strip()
         doc.cssselect('#datestamp')[0].drop_tree()
@@ -113,9 +113,7 @@ class NuScraper(GoogleScraper):
                             continue
 
                         ca = art.copy()
-
                         ca.url = url
-                        ca.medium = 257
 
                         try:
                             ca.date = toolkit.readDate(li.cssselect('.tijdsverschil')[0].text)
