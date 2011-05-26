@@ -3,7 +3,7 @@ import json
 import sys
 
 from amcat.db import dbtoolkit; db=dbtoolkit.amcatDB()
-from amcat.model.article import Article #, ArticleText, ArticlePost
+from amcat.model.article import Article, ArticleText, ArticlePost
 
 PROPS = ['headline', 'byline', 'section', 'date', 'pagenr',
          'url', 'externalid', 'text', 'medium']
