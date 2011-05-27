@@ -159,12 +159,12 @@ def readDate(datestr, lax=False, rejectPre1970=False, american=False):
             
     if not date:
         if lax: return
-        raise ValueError("Could not parse datetime string '%s'" % (string))
+        raise ValueError("Could not parse datetime string '%s'" % (datestr))
 
     if date[0] < 1970 and rejectPre1970:
         if lax: return None
         raise ValueError("Rejecting datetime string %s -> %s"
-                         % (string, date))
+                         % (datestr, date))
 
     if not time: time = (0, 0, 0)
     return datetime.datetime(*(date + time))

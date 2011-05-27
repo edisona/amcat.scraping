@@ -65,7 +65,7 @@ class Scraper(object):
     def _wait(self, threads=None):
         threads = threads or self.max_threads
         while threading.activeCount() > threads:
-            pass
+            time.sleep(0.01)
 
     def _commit(self):
         """This function commits all documents/comments in commit_queue. To
