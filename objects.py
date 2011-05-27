@@ -109,7 +109,7 @@ class HTMLDocument(Document):
         if t in (html.HtmlElement, etree._Element):
             try:
                 return html2text(html.tostring(val, encoding=str)).strip()
-            except parser.HTMLParseError:
+            except parser.HTMLParseError, TypeError:
                 print('Warning: html2text failed!')
                 return 'Converting from HTML failed!'
 
