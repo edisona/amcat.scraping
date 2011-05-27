@@ -33,7 +33,13 @@ def todate(date):
       return date.date()
   return date
   
-
+def filter_arts(arts, date):
+    date = todate(date)
+    for art in arts:
+        if todate(art.date) == date:
+            yield art
+        elif todate(art.date) < date:
+            break
 
 ###########################################################################
 ##                     Date(time) functions                              ##

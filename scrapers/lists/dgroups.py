@@ -59,7 +59,6 @@ class DGroupsScraper(HTTPScraper):
 
         nr+=1
         if maxi >= nr:
-            print(maxi)
             for p in self.getAllPages(nr):
                 yield p
         

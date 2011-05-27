@@ -22,6 +22,7 @@ from scraping.toolkit import dictionary
 from scraping.html2text import html2text
 
 from lxml import html
+from lxml import etree
 from html import parser
 
 import copy
@@ -105,7 +106,7 @@ class HTMLDocument(Document):
         if t is str:
             return val.strip()
 
-        if t is html.HtmlElement:
+        if t in (html.HtmlElement, etree._Element):
             try:
                 return html2text(html.tostring(val, encoding=str)).strip()
             except parser.HTMLParseError:
@@ -116,7 +117,7 @@ class HTMLDocument(Document):
             """Check if all objects in list are HtmlElement and then proceed"""
             val = tuple(val)
 
-            if all([type(e) is html.HtmlElement for e in val]):
+            if all([type(e) in (html.HtmlElement, etree._Element) for e in val]):
                 return "\n\n".join(map(self._convert, val))            
 
         # Unknown type

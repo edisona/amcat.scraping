@@ -52,7 +52,6 @@ def create_article(art):
     IDS[aid] = new_aid
     if pid is not None:
         pid = IDS[pid]
-        print(pid, new_aid)
         create_comment(pid, new_aid)
 
     return aid
