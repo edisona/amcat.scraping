@@ -85,10 +85,6 @@ class Document(object):
         d = cls(parent=parent)
         for k,v in self._properties.items():
             setattr(d, k, v)
-        #for k,v in copy.deepcopy(self._properties).items():
-        #    setattr(d, k, v)
-        #    #d._properties[k] = v
-        #    #d.__setattr__(k, v)
 
         return d
 

@@ -79,7 +79,7 @@ class JSONExporter(Exporter):
             return obj._id
 
         if not self.first:
-            self.io.write('\n,')
+            self.io.write(',\n')
         else:
             self.first = False
 
