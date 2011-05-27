@@ -51,14 +51,15 @@ class DGroupsScraper(HTTPScraper):
             maxi = int(page.cssselect("#ctl00_rightcolumn_pagingControl_lblPageCount")[0].text)
         except IndexError:
             # Try again..
-            print('again..')
-            maxi = nr = nr - 1
+            maxi = nr + 1
+            nr = nr - 1
         else:
             for a in page.cssselect('table > tr > td > a'):
                 yield parse.urljoin(self.baseurl, a.get('href'))
 
         nr+=1
         if maxi >= nr:
+            print(maxi)
             for p in self.getAllPages(nr):
                 yield p
         
