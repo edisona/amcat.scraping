@@ -90,6 +90,9 @@ class Scraper(object):
             page.prepare(self)
             
             doc = self.getDocument(page)
+            if doc is None:
+                continue
+
             self.commit_queue.put(doc)
             
             # Get comments
@@ -254,6 +257,9 @@ class HTTPScraper(Scraper):
             return self.get(url, attempt=attempt+1, read=read, lxml=lxml)
 
 class GoogleScraper(HTTPScraper):
+    pps = 100
+    site = None
+
     def __init__(self, exporter, max_threads=None, pages_per_search=100):
         super(GoogleScraper, self).__init__(exporter, max_threads=max_threads)
 
@@ -291,11 +297,8 @@ class GoogleScraper(HTTPScraper):
         
         results = self.get(url).cssselect('h3.r > a.l')
         for a in results:
-            d = objects.HTMLDocument()
-            d.url = a.get('href')
-            d.date = date
-
-            yield d
+            url = a.get('href')
+            yield objects.HTMLDocument(url=url, date=date)
 
         if len(results) == self.pps:
             for d in self.getPages(date, page=page+1):

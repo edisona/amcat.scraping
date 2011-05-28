@@ -28,11 +28,7 @@ from scraping.processors import HTTPScraper
 
 from urllib.parse import urljoin
 from scraping import toolkit
-from lxml.html import fromstring, tostring as _tostring
-
 from lxml.builder import E as builder
-
-tostring = lambda s: _tostring(s, encoding="ISO-8859-1")
 
 class PownedScraper(HTTPScraper):
     def __init__(self, exporter, max_threads=10):

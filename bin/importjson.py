@@ -74,17 +74,17 @@ def main(path):
 
             create_article(art)
 
-            count += 1;
+            count += 1
+            if not count % 500:
+                print(count)
+                db.commit()
+                
         elif l.startswith('['):
             pass
         elif l.startswith(']'):
             pass
         else:
             io.write(l)
-
-        if not count % 500:
-            print(count)
-            db.commit()
     db.commit()
 
 if __name__ == '__main__':

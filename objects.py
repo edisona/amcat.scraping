@@ -37,13 +37,16 @@ class Document(object):
     initialized."""
     _id = None
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, **kargs):
         """@param parent: """
         object.__setattr__(self, '_properties', dict())
         object.__setattr__(self, '_parent', parent)
 
         if parent and not isinstance(parent, self.__class__):
             raise ValueError("`parent` should inherit from Document.")
+
+        for k,v in kargs.items():
+            setattr(self, k, v)
 
     def __setattr__(self, name, value):
         if not hasattr(self, name) or name in self._properties:
@@ -109,7 +112,7 @@ class HTMLDocument(Document):
         if t in (html.HtmlElement, etree._Element):
             try:
                 return html2text(html.tostring(val, encoding=str)).strip()
-            except parser.HTMLParseError, TypeError:
+            except (parser.HTMLParseError, TypeError):
                 print('Warning: html2text failed!')
                 return 'Converting from HTML failed!'
 
