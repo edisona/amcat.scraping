@@ -19,14 +19,22 @@
 """Document objects returned by various scraping-functions."""
 
 from scraping.toolkit import dictionary
-from scraping.html2text import html2text
+from html2text import html2text
 
 from lxml import html
 from lxml import etree
-from html import parser
+
+try:
+    # Python 3.x
+    from html import parser
+except ImportError:
+    import HTMLParser as parser
 
 import copy
 import types
+
+class Properties(object):
+    pass
 
 class Document(object):
     """Object representing an document. No properties are
@@ -35,62 +43,31 @@ class Document(object):
 
     __getattr__ and __setattr__ will raise errors when not
     initialized."""
-    _id = None
-
     def __init__(self, parent=None, **kargs):
         """@param parent: """
-        object.__setattr__(self, '_properties', dict())
-        object.__setattr__(self, '_parent', parent)
-
-        if parent and not isinstance(parent, self.__class__):
-            raise ValueError("`parent` should inherit from Document.")
+        self.props = Properties()
+        self.parent = parent
+        self.id = None
 
         for k,v in kargs.items():
-            setattr(self, k, v)
-
-    def __setattr__(self, name, value):
-        if not hasattr(self, name) or name in self._properties:
-            self._properties[name] = value
-        else:
-            object.__setattr__(self, name, value)
-
-    def __getattr__(self, name):
-        props = self.__dict__['_properties']
-        if name in props:
-            return props[name]
-        else:
-            raise AttributeError(name)
-
-    def __delattr__(self, name):
-        if name in self._properties:
-            del self._properties[name]
-        else:
-            raise AttributeError(name)
+            setattr(self.props, k, v)
 
     def getprops(self):
-        """Get properties as a dict"""
-        return self._properties
-
-    def getparent(self):
-        return self._parent
+        return self.props.__dict__
 
     def updateprops(self, dic):
         """Update properties.
 
         @type dic: dictionary
         @param dic: dictionary to use to update the properties"""
-        self.__dict__['_properties'].update(dic)
+        self.props.__dict__.update(dic)
 
     def copy(self, cls=None, parent=None):
         """Returns a copy of itself, with all the properties deep-copied."""
-        parent = parent or self._parent
+        parent = parent or self.parent
         cls = cls or Document
 
-        d = cls(parent=parent)
-        for k,v in self._properties.items():
-            setattr(d, k, v)
-
-        return d
+        return cls(parent=parent, **copy.deepcopy(self.getprops()))
 
     def prepare(self, processor):
         """This method prepares the document for processing. See HTMLDocument for
@@ -101,7 +78,10 @@ class HTMLDocument(Document):
     """Document object for HTML documents. This means that all properties are converted to
     MarkDown compatible text in `getprops`. Moreover, lxml.html objects (or even lists of
     lxml.html objects) are converted to text before returning."""
-    doc = None # Used to store lxml object
+    def __init__(self, *args, **kargs):
+        self.doc = None # Used to store lxml object
+
+        super(HTMLDocument, self).__init__(*args, **kargs)
 
     def _convert(self, val):
         t = type(val)
@@ -110,9 +90,10 @@ class HTMLDocument(Document):
             return val.strip()
 
         if t in (html.HtmlElement, etree._Element):
+            #return html2text(html.tostring(val)).strip()
             try:
-                return html2text(html.tostring(val, encoding=str)).strip()
-            except (parser.HTMLParseError, TypeError):
+                return html2text(html.tostring(val)).strip() #encoding=str
+            except (parser.HTMLParseError, TypeError) as e:
                 print('Warning: html2text failed!')
                 return 'Converting from HTML failed!'
 
@@ -134,10 +115,10 @@ class HTMLDocument(Document):
     @dictionary
     def getprops(self):
         """Return properties converted (where applicable) to MarkDown"""
-        for k,v in self._properties.items():
+        for k,v in super(HTMLDocument, self).getprops().items():
             yield (k, self._convert(v))
 
     def prepare(self, processor):
-        if self.doc is None and hasattr(self, 'url'):
-            if hasattr(processor, 'get'):
-                self.doc = processor.get(self.url)
+        if self.doc is None and hasattr(self.props, 'url'):
+            if hasattr(processor, 'getdoc'):
+                self.doc = processor.getdoc(self.props.url)

@@ -72,8 +72,8 @@ class GeenstijlScraper(HTTPScraper):
             ca = comm.copy()
 
             ca.text = c.findall('p')
-            footer = "".join([t for t in c.find('footer').itertext()])
-            *ca.author, date, time = footer.split(' | ')
+            footer = "".join([t for t in c.find('footer').itertext()]).split(' | ')
+            ca.author, date, time = footer[:-2], footer[-2], footer[-1]
             ca.author = " | ".join(ca.author)
 
             day, month, year = map(int, date.split('-'))
@@ -85,10 +85,12 @@ class GeenstijlScraper(HTTPScraper):
             yield ca
                 
 if __name__ == '__main__':
+    from datetime import date
+
     fo = open('/home/martijn/Geenstijl.json', 'w')
     ex = JSONExporter(fo)
 
     s = GeenstijlScraper(ex)
-    s.scrape(None)
+    s.scrape(date(2011, 6, 12))
     s.quit()
 

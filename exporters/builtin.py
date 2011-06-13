@@ -23,6 +23,11 @@ This module only contains scrapers without special import needs."""
 import json
 import datetime
 
+try:
+    unicode
+except NameError:
+    unicode = str
+
 class Exporter(object):
     """Methods don't have to be thread-safe, since the main-loop will never
     spawn multiple `commit` threads."""
@@ -66,7 +71,7 @@ class JSONExporter(Exporter):
         super(JSONExporter, self).__init__()
 
         self.close_io = close_io
-        self.io = open(io, 'w') if type(io) is str else io
+        self.io = open(io, 'w') if type(io) in (str, unicode) else io
         self.io.write('[\n')
 
         self.first = True
@@ -74,18 +79,17 @@ class JSONExporter(Exporter):
     def commit(self, obj):
         super(JSONExporter, self).commit(obj)
 
-        if obj._id is not None:
+        if obj.id is not None:
             # Already comitted
-            return obj._id
+            return obj.id
 
         if not self.first:
             self.io.write(',\n')
         else:
             self.first = False
 
-        parent = obj.getparent()
-        pid = self.commit(parent) if parent else None
-        obj._id = oid = next(self.id)
+        pid = self.commit(obj.parent) if obj.parent else None
+        obj.id = oid = next(self.id)
 
         props = obj.getprops()
         props.update(dict(parent=pid, id=oid))
