@@ -52,8 +52,6 @@ except ImportError:
 from scraping import objects
 
 import os, time, sys
-import multiprocessing
-import urllib
 import datetime
 import threading
 import traceback
@@ -93,12 +91,11 @@ class Worker(object):
             else:
                 try:
                     for doc in self.scraper.get(work):
-                        print('putting')
                         self.scraper.document_queue.put(doc)
                 except Exception as e:
                     self.queue.task_done()
                     traceback.print_exc(file=sys.stdout)
-                    threading.Thread(self.scraper.quit).start()
+                    sys.exit(1)
 
             self.queue.task_done()
 
@@ -146,7 +143,6 @@ class Scraper(object):
             except queue.Empty:
                 continue
 
-            print('got doc, comitting')
             self.exporter.commit(doc)
             self.document_queue.task_done()
 
@@ -261,3 +257,19 @@ class HTTPScraper(Scraper):
                     continue
                 else:
                     raise(e)
+
+class CommentScraper(Scraper):
+    """A CommentScraper replaces `get` with `main` and `comments`."""
+    def get(self, date):
+        for doc in self.main(date):
+            yield doc
+
+            com = doc.copy(parent=doc)
+            for c in self.comments(com):
+                yield c
+
+    def main(self, date):
+        return []
+
+    def comments(self, com):
+        return []

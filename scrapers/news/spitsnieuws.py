@@ -19,10 +19,11 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
+INDEX_URL = "http://www.spitsnieuws.nl/archives/%(year)s%(month)02d/"
 
 import datetime
 
-from scraping.processors import HTTPScraper
+from scraping.processors import HTTPScraper, CommentScraper
 from scraping.objects import HTMLDocument
 
 from amcat.tools import toolkit
@@ -33,24 +34,22 @@ try:
 except ImportError:
     from urlparse import urljoin
 
-class SpitsnieuwsScraper(HTTPScraper):
+class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
     def __init__(self, exporter, max_threads=None):
         super(SpitsnieuwsScraper, self).__init__(exporter, max_threads=max_threads)
-        
-        self.index_url = "http://www.spitsnieuws.nl/archives/%(year)s%(month)02d/"
 
     def init(self, date):
-        url = self.index_url % dict(year=date.year, month=date.month)
+        url = INDEX_URL % dict(year=date.year, month=date.month)
         
         for li in self.getdoc(url).cssselect('.ltMainContainer ul li.views-row'):
             docdate = toolkit.readDate(li.text.strip('\n\r •:')).date()
             if docdate == stoolkit.todate(date):
                 href = li.cssselect('a')[0].get('href')
-                href = urljoin(self.index_url, href)
+                href = urljoin(INDEX_URL, href)
 
                 yield HTMLDocument(url=href)
 
-    def get(self, doc):
+    def main(self, doc):
         doc.props.headline = doc.doc.cssselect('h2.title')[0].text
         doc.props.text = doc.doc.cssselect('div.mainArticleContainer .content p')
 
@@ -60,59 +59,18 @@ class SpitsnieuwsScraper(HTTPScraper):
 
         yield doc
 
-        for comm in self.getcomms(doc):
-            yield comm
+    def comments(self, doc):
+        lis = doc.doc.cssselect('ul.reactiesList.fltlft > li')
 
-    def getcomms(self, doc):
-        return []
-        
-    #def getPages(self, date):
-    #    url = self.index_url % {'year' : date.year, 'month' : date.month}
-    #    ulist = self.get(url).cssselect('#colprim ul')[0]
-    #    for li in ulist.findall('li'):
-    #        day = int(next(li.itertext())[:-2].split('-')[0])
-    #        if day is not date.day:
-    #            continue
-    #        
-    #        yield HTMLDocument(date=date,
-    #                           url=li.find('a').get('href'),
-    #                           headline=li.find('a').text)
-        
-    #def _parseDate(self, date, time):
-    #    day, month, year = map(int, date.split('-'))
-    #    hour, minute = map(int, time.split(':'))
-    #    year += 2000
-        
-    #    return datetime(year, month, day, hour, minute)
-        
-    #def getDocument(self, ap):        
-    #    art = ap.doc.cssselect('div.artikel')[0]
-    #    
-    #    footer = art.cssselect('.artikelfooter')[0].itertext()
-    #    
-    #    ap.author = next(footer)
-    #    date, time = next(footer).split('|')[1:3]
-    #    ap.date = self._parseDate(date, time)
-    #    ap.text = art.findall('p')
-        
-    #    return ap
-    
-    #def getComments(self, refcom):        
-    #    for c in refcom.doc.cssselect('.reactie'):
-    #        doc = refcom.copy()
-    #        
-    #        p = c.findall('p')
-    #        footer = p[-1]
-    #        doc.text = p[:-1]
-    #        
-    #        iter = footer.itertext()
-    #        doc.author = next(iter)
-    #        timedate = next(iter).strip() or next(iter)
-    #        date, time = timedate.split('|')[1:3]
-    #        
-    #        doc.date = self._parseDate(date, time)
-    #        
-    #        yield doc
+        for li in lis:
+            comm = doc.copy()
+            comm.text = li.cssselect('h3 > p')
+
+            footer = li.cssselect('li > p')[-1].text_content().strip().split('|')
+            comm.date = toolkit.readDate(" ".join(footer[-3:-1]))
+            comm.author = "|".join(footer[:-3]).strip()
+
+            yield comm
 
 if __name__ == '__main__':
     from scraping.exporters.builtin import JSONExporter
