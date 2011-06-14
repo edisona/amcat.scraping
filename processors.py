@@ -198,7 +198,11 @@ class HTTPScraper(Scraper):
 
         self.session = s
 
-        self.login()
+        try:
+            self.login()
+        except Exception as e:
+            traceback.print_exc(file=sys.stdout)
+            self.quit()
 
     def login(self):
         pass

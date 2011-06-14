@@ -21,8 +21,6 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://www.spitsnieuws.nl/archives/%(year)s%(month)02d/"
 
-import datetime
-
 from scraping.processors import HTTPScraper, CommentScraper
 from scraping.objects import HTMLDocument
 
@@ -73,6 +71,7 @@ class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
             yield comm
 
 if __name__ == '__main__':
+    import datetime
     from scraping.exporters.builtin import JSONExporter
 
     ex = JSONExporter('/tmp/spitsnieuws.json')

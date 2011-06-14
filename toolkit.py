@@ -46,3 +46,24 @@ def filter_docs(docs, date):
             yield art
         elif todate(doc.props.date) < date:
             break
+
+@dictionary
+def parse_form(form):
+    """Turn a form in to a dictionary, including hidden fields.
+
+    @type form: lxml-html object
+    @param form: form to parse"""
+    for inp in form.cssselect('input'):
+        yield (inp.get('name'), inp.get('value', None).encode('utf-8'))
+
+def parse_coord(coord):
+    """Newspapers often create clickable articles using divs and styles. For example:
+    
+    left:331px; top:495px; width:72px; height:86px
+
+    This function returns a tuple containing (left, top, width, height).
+
+    @type coord: str
+    @param coord: coordinate to parse"""
+    coords = [x.strip() for x in coord.split(';')]
+    return map(int, (x.split(':')[1][:-2] for x in coords))
