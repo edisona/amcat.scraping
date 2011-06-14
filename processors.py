@@ -33,11 +33,13 @@ from lxml import html
 try:
     from urllib import request
     from urllib.error import URLError
-    from urllib.parse import unquote
+    from urllib.parse import unquote, urlencode, urljoin
 except ImportError:
     import urllib2 as request
     from urllib2 import URLError
     from urllib import unquote
+    from urllib import urlencode
+    from urlparse import urljoin
 
 try:
     import configparser
@@ -50,6 +52,7 @@ except ImportError:
     import Queue as queue
 
 from scraping import objects
+from scraping import toolkit
 
 import os, time, sys
 import datetime
@@ -167,7 +170,7 @@ class Scraper(object):
         try:
             for work in self.init(date):
                 if not isinstance(work, objects.Document):
-                    raise(ValueError("init() should return a Document-object not %s" % repr(work)))
+                    raise(ValueError("init() should yield a Document-object not %s" % type(work)))
                 self.work_queue.put(work)
         except Exception as e:
             traceback.print_exc(file=sys.stdout)
@@ -261,6 +264,15 @@ class HTTPScraper(Scraper):
                     continue
                 else:
                     raise(e)
+
+class PCMScraper(HTTPScraper):
+    """Scraper for PCM Newspapers"""
+    def login(self):
+        doc = self.getdoc(self.login_url)
+        frm = toolkit.parse_form(doc.cssselect('form')[0])
+        frm.update(self.login_data)
+
+        self.session.open(self.login_url, urlencode(frm)).read()
 
 class CommentScraper(Scraper):
     """A CommentScraper replaces `get` with `main` and `comments`."""

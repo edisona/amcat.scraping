@@ -23,12 +23,12 @@ from scraping.processors import PCMScraper
 from scraping.objects import HTMLDocument, IndexDocument
 from scraping import toolkit as stoolkit
 
-LOGIN_URL = "https://caps.volkskrant.nl/service/login"
-INDEX_URL = "http://www.volkskrant.nl/vk-online/VK/%(year)d%(month)02d%(day)02d___/VKN01_001/"
+LOGIN_URL = "https://login.nrc.nl/login"
+INDEX_URL = "http://digitaleeditie.nrc.nl/digitaleeditie/NH/%(year)d/%(month_minus)d/%(year)d%(month)02d%(day)02d___/1_01/"
 
 POST_DATA = {
-    'username' : 'nruigrok@hotmail.com',
-    'password' : '5ut5jujr'
+    'username' : 'newsmonitor',
+    'password' : 'nieuwsmonitor'
 }
 
 try:
@@ -38,59 +38,51 @@ except ImportError:
     from urllib.parse import urlencode, urljoin
 
 
-class VolkskrantScraper(PCMScraper):
+class NRCHandelsbladScraper(PCMScraper):
     def __init__(self, exporter, max_threads=None):
         self.login_url = LOGIN_URL
         self.login_data = POST_DATA
 
-        super(VolkskrantScraper, self).__init__(exporter, max_threads=1)
+        super(NRCHandelsbladScraper, self).__init__(exporter, max_threads=max_threads)
 
     def init(self, date):
-        index = INDEX_URL % dict(year=date.year, month=date.month, day=date.day)
+        index = INDEX_URL % {
+            'year' : date.year,
+            'month' : date.month,
+            'day' : date.day,
+            'month_minus' : date.month - 1
+        }
 
-        doc = self.getdoc(index)
-        for opt in doc.cssselect('#select_page_top optgroup > option'):
-            url = urljoin(index, '../%s' % opt.get('value')) + '/'
-            
-            if 'VKN01' in url:
-                # We're not interested in the newspaper-attachments (sports, etc.)
-                yield IndexDocument(url=url, date=date)
+        sections = self.getdoc(index).cssselect('#Sections a.thumbnail-link')
+        for s in sections:
+            url = urljoin(index, s.get('href'))
+            yield IndexDocument(url=url, date=date)
 
     def get(self, ipage): # ipage --> index_page
-        ipage.bytes = self.getdoc(urljoin(ipage.props.url, './page.jpg'), lxml=False)
-        ipage.page = ipage.props.url.split('_')[-1].strip('/')
+        ipage.doc = self.getdoc(ipage.props.url)
+        ipage.bytes = self.getdoc(urljoin(ipage.props.url, 'page.jpg'), lxml=False)
+        ipage.page = int(ipage.props.url.split('_')[-1].split('/')[0])
 
-        doc = self.getdoc(ipage.props.url)
-        for art in doc.cssselect('#articles > area'):
+        for a in ipage.doc.cssselect('#Articles a'):
             page = HTMLDocument(date=ipage.props.date)
+            page.coords = stoolkit.parse_coords(ipage.doc.cssselect('div.%s' % a.get('class')))
+            page.props.url = urljoin(ipage.props.url, '%s_text.html' % a.get('class'))
 
-            # Getting coordinates
-            page.coords = []
-            for div in doc.cssselect('div.%s' % art.get('class')):
-                coord = stoolkit.parse_coord(div.get('style'))
-                page.coords.append(coord)
-
-            page.props.url = urljoin(ipage.props.url, art.get('class') + '.html')
             page.prepare(self)
-
-            # Try two times.
-            try:
-                yield self.get_article(page)
-            except:
-                yield self.get_article(page)
+            yield self.get_article(page)
 
             ipage.addchild(page)
-
+        
         yield ipage
 
-    def get_article(self, page):        
-        rurl = page.doc.getchildren()[1].getchildren()[0].get('src')
-        aurl = urljoin(page.props.url, rurl).replace('header', 'text')
-        doc = self.getdoc(aurl).cssselect('#article')[0]
+    def get_article(self, page):
+        page.props.text = page.doc.cssselect('.column-left')[0]
+        page.props.headline = page.doc.cssselect('h2')[0].text
 
-        page.props.headline = doc.cssselect('h1')[0].text
-        page.props.text = doc.cssselect('.body > p')
-
+        intro = page.doc.cssselect('p.intro')
+        if intro:
+            page.props.text.insert(0, intro[0])
+           
         return page
 
 if __name__ == '__main__':
@@ -98,5 +90,5 @@ if __name__ == '__main__':
     from scraping.exporters.builtin import JSONExporter
 
     ex = JSONExporter('/tmp/spitsnieuws.json')
-    sc = VolkskrantScraper(ex, max_threads=2)
+    sc = NRCHandelsbladScraper(ex, max_threads=8)
     sc.scrape(datetime.date(2011, 6, 14))

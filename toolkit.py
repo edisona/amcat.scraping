@@ -25,6 +25,12 @@ def dictionary(func):
         return dict(tuple(func(*args, **kwargs)))
     return _dictionary
 
+def iterable(func):
+    """This decorator converts a generator yielding to a tuple."""
+    def _iterable(*args, **kwargs):
+        return tuple(func(*args, **kwargs))
+    return _iterable
+
 def todate(date):
   """Convert datetime object to date object. If `date` can't be converted, return
   withouth modifying"""
@@ -56,6 +62,7 @@ def parse_form(form):
     for inp in form.cssselect('input'):
         yield (inp.get('name'), inp.get('value', None).encode('utf-8'))
 
+@iterable
 def parse_coord(coord):
     """Newspapers often create clickable articles using divs and styles. For example:
     
@@ -67,3 +74,7 @@ def parse_coord(coord):
     @param coord: coordinate to parse"""
     coords = [x.strip() for x in coord.split(';')]
     return map(int, (x.split(':')[1][:-2] for x in coords))
+
+def parse_coords(elements):
+    """Uses parse_coord to parse multiple lxml.html elements' style attributes"""
+    return [parse_coord(el.get('style')) for el in elements]
