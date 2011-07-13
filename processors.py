@@ -142,7 +142,7 @@ class Scraper(object):
             # Keep running until all documents are committed, despite not
             # being alive. 
             try:
-                doc = self.document_queue.get(timeout=0.5)
+                doc = self.document_queue.get(timeout=0.1)
             except queue.Empty:
                 continue
 
@@ -157,18 +157,15 @@ class Scraper(object):
         return []
 
     ### PUBLIC FUNCTIONS ###
-    def scrape(self, date, auto_quit=True):
+    def scrape(self, auto_quit=True, **kwargs):
         """Scrape for a certain date. Scrapers may support date=None.
 
-        @type date: datetime.date or datetime.datetime
-        @param date: date to scrape for
-
         @type auto_quit: Boolean
-        @param auto_quit: Automatically quit when done with this date"""
-        date = date.date() if hasattr(date, 'date') else date
+        @param auto_quit: Automatically quit when done with this date
 
+        @param kwargs: arguments to pass to scraper.init"""
         try:
-            for work in self.init(date):
+            for work in self.init(**kwargs):
                 if not isinstance(work, objects.Document):
                     raise(ValueError("init() should yield a Document-object not %s" % type(work)))
                 self.work_queue.put(work)
@@ -272,7 +269,7 @@ class PCMScraper(HTTPScraper):
         frm = toolkit.parse_form(doc.cssselect('form')[0])
         frm.update(self.login_data)
 
-        self.session.open(self.login_url, urlencode(frm)).read()
+        return self.session.open(self.login_url, urlencode(frm)).read()
 
 class CommentScraper(Scraper):
     """A CommentScraper replaces `get` with `main` and `comments`."""
@@ -289,3 +286,51 @@ class CommentScraper(Scraper):
 
     def comments(self, com):
         return []
+
+class GoogleScraper(HTTPScraper):
+    """Some websites don't have archives. Google enables us to search for those pages."""
+    def __init__(self, exporter, max_threads=None, domain=None, pps=100):
+        """
+        @type domain: str
+        @param domain: domain to limit search to
+
+        @type pps: int
+        @param pps: pages per search"""
+        super(GoogleScraper, self).__init__(exporter, max_threads)
+
+        self.session.addheaders = [('User-agent', 'Mozilla/5.0')]
+        self.google_url = 'http://www.google.nl/search?'
+        self.domain = domain
+        self.pps = pps
+
+        # Init cookies
+        self.getdoc(self.google_url)
+
+    def _genurl(self, term, page=0):
+        q = term + ' site:%s' % self.domain if self.domain else term
+
+        query = {
+            'num' : self.pps,
+            'hl' : 'nl',
+            'btnG' : 'Zoeken',
+            'q' : q,
+            'start' : page * self.pps
+        }
+
+        return self.google_url + urlencode(query)
+
+    def formatterm(self, date):
+        return None
+
+    def init(self, date, page=0):
+        term = self.formatterm(date)
+        url = self._genurl(term, page)
+
+        results = self.getdoc(url).cssselect('h3.r > a.l')
+        for a in results:
+            url = a.get('href')
+            yield objects.HTMLDocument(url=url, date=date)
+
+        if len(results) == self.pps:
+            for d in self.init(date, page=page+1):
+                yield d

@@ -18,6 +18,13 @@
 ###########################################################################
 
 import datetime
+import types
+
+from amcat.model.scraper import Scraper
+
+##############
+#### MISC ####
+##############
 
 def dictionary(func):
     """This decorator converts a generator yielding (key, value) to a dictionary."""
@@ -26,10 +33,17 @@ def dictionary(func):
     return _dictionary
 
 def iterable(func):
-    """This decorator converts a generator yielding to a tuple."""
+    """This decorator converts a generator to a tuple."""
     def _iterable(*args, **kwargs):
         return tuple(func(*args, **kwargs))
     return _iterable
+
+
+
+
+########################
+#### SCRAPING TOOLS ####
+########################
 
 def todate(date):
   """Convert datetime object to date object. If `date` can't be converted, return
@@ -60,7 +74,7 @@ def parse_form(form):
     @type form: lxml-html object
     @param form: form to parse"""
     for inp in form.cssselect('input'):
-        yield (inp.get('name'), inp.get('value', None).encode('utf-8'))
+        yield (inp.get('name'), inp.get('value', '').encode('utf-8'))
 
 @iterable
 def parse_coord(coord):
@@ -78,3 +92,48 @@ def parse_coord(coord):
 def parse_coords(elements):
     """Uses parse_coord to parse multiple lxml.html elements' style attributes"""
     return [parse_coord(el.get('style')) for el in elements]
+
+
+
+########################
+#### MANAGING TOOLS ####
+########################
+def get_scrapers():
+    """
+    Get all scraper objects in scrapers/*/*.py.
+
+    @return: scraper objects
+    @return type: generator
+    """
+    from scraping import processors, scrapers
+
+    PROCESSORS = (processors.Scraper,
+                  processors.HTTPScraper,
+                  processors.CommentScraper,
+                  processors.PCMScraper,
+                  processors.GoogleScraper)
+
+    def _get_categories(module=scrapers):
+        mods = [getattr(module, m) for m in dir(module)]
+        return (m for m in mods if type(m) == types.ModuleType)
+
+    def _get_scraper_modules(category):
+        return _get_categories(category)
+
+    for cat in _get_categories():
+        for mod in _get_scraper_modules(cat):
+            members = [getattr(mod, m) for m in dir(mod)]
+            for member in (m for m in members if type(m) == type):
+                if member not in PROCESSORS and issubclass(member, processors.Scraper):
+                    yield member
+
+def get_scraper_model(scraper_class):
+    """Return a model for `scraper_class`.
+
+    Raises amcat.model.scraping.Scraper.DoesNotExists when the model isn't found.
+
+    @type scraper_class: class
+    @param scraper_class: scraper
+
+    @return amcat.model.scraping.Scraper object"""
+    return Scraper.objects.get(class_name=scraper_class.__name__)
