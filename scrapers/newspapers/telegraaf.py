@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals, print_function, absolute_import
 ###########################################################################
 #          (C) Vrije Universiteit, Amsterdam (the Netherlands)            #
@@ -18,51 +19,61 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from scraping.processors import GoogleScraper
-from scraping.objects import HTMLDocument
+from scraping.processors import PCMScraper
+from scraping.objects import HTMLDocument, IndexDocument
 from scraping import toolkit as stoolkit
 
-from amcat.tools import toolkit
+from amcat.model.scraper import Scraper
 
-import datetime
-from lxml import html
+INDEX_URL = "http://telegraaf-i.telegraaf.nl/telegraaf/_main_/%(year)d/%(month)02d/%(day)02d/001"
+LOGIN_URL = "http://telegraaf-i.telegraaf.nl/tmg/login.php"
 
-DAYS = ('maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag')
-MONTHS = ('januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus',
-          'september', 'oktober', 'november', 'december')
+try:
+    from urllib import urlencode
+    from urlparse import urljoin
+except ImportError:
+    from urllib.parse import urlencode, urljoin
 
-TERM = '"Gepubliceerd: %(dayname)s %(day)d %(month)s %(year)d"'
 
-class DePersScraper(GoogleScraper):
+class TelegraafScraper(PCMScraper):
     def __init__(self, exporter, max_threads=None):
-        super(DePersScraper, self).__init__(exporter, max_threads, domain='depers.nl')
+        s = Scraper.objects.get(class_name=TelegraafScraper.__name__)
 
-    def formatterm(self, date):
-        return TERM % {
-            'dayname' : DAYS[date.isoweekday() - 1],
-            'day' : date.day,
-            'month' : MONTHS[date.month - 1],
-            'year' : date.year
-        }
+        self.login_url = LOGIN_URL
+        self.login_data = {"sso:field:username" : s.email,
+                           "sso:field:password" : s.password}
 
-    def get(self, page):
-        p = page.doc.cssselect('p.datum_nieuws')[0]
-        p.drop_tree()
+        super(TelegraafScraper, self).__init__(exporter, max_threads)
 
-        info = html.tostring(p).split('<br>')
-        if len(info) == 3:
-            # Author available
-            page.props.author = html.fromstring(info[0]).text.strip()[6:]
-            page.props.date = toolkit.readDate(info[1].strip()[14:])
-        else:
-            page.props.date = toolkit.readDate(p.text.strip()[14:])
+    def init(self, date):
+        """
+        @type date: datetime.date, datetime.datetime
+        @param date: date to scrape for.
+        """
+        index = INDEX_URL % dict(year=date.year, month=date.month, day=date.day)
 
-        page.props.text = page.doc.cssselect('.lbox440')[0]
-        page.props.headline = page.doc.cssselect('h1')[0].text
+        doc = self.getdoc(index)
+        for td in doc.cssselect('td.select_page option'):
+            url = urljoin(index, td.get('value'))
+            page = int(td.get('value'))
 
-        yield page
+            yield IndexDocument(url=url, page=page, date=date)
+        
+
+    def get(self, ipage):
+        from lxml.html import tostring
+        print(tostring(ipage.doc))
+
+        ipage.props.section = ipage.doc.cssselect('#rubrieken td[class=selected]')[0].text
+
+        print(ipage.props.section)
+
+        return []
+
+    def get_article(self, page):
+        pass
 
 if __name__ == '__main__':
     from scraping.manager import main
     
-    main(DePersScraper)
+    main(TelegraafScraper)

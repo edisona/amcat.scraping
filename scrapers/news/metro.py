@@ -61,9 +61,6 @@ class MetroScraper(GoogleScraper):
                 yield page
 
 if __name__ == '__main__':
-    import datetime
-    from scraping.exporters.builtin import JSONExporter
-
-    ex = JSONExporter('/tmp/metro.json')
-    sc = MetroScraper(ex, max_threads=8)
-    sc.scrape(datetime.date(2011, 6, 14))
+    from scraping.manager import main
+    
+    main(MetroScraper)

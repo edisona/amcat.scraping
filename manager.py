@@ -35,6 +35,7 @@ TYPE_MAP = {
     # For parse_doc
     'datetime.date' : datetime.date,
     'datetime.datetime' : datetime.datetime,
+    'None' : lambda: None,
     'int' : int,
     'integer' : int,
     'str' : str,
@@ -94,7 +95,9 @@ def main(scraper):
 
     # Add optional scraper arguments
     sa = p.add_argument_group('scraper arguments')
-    sa.add_argument('--max-threads', help='Number of threads to use while scraping.', metavar="N")
+    sa.add_argument('--max-threads', help='Number of threads to use while scraping.', metavar="N", type=int)
+    sa.add_argument('--update', help='Get new comments / edited articles', action='store_const',
+                    const=True, default=False)
 
     # Add exporter arguments
     p.add_argument("exporter", type=str, help="exporter to use {json|dummy|amcatdb}")
@@ -126,6 +129,8 @@ def main(scraper):
             sys.exit(1)
         exp_kwargs[kwarg] = getattr(parsed, kwarg)
 
+    scraper_kwarg = dict(max_threads=parsed.max_threads) if parsed.max_threads else dict()
+
     exp = exp[0](**exp_kwargs)
-    scr = scraper(exp)
-    scr.scrape(**kwargs)
+    scr = scraper(exp, **scraper_kwarg)
+    scr.scrape(update=parsed.update, **kwargs)

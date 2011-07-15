@@ -27,6 +27,8 @@ from scraping.objects import HTMLDocument
 from amcat.tools import toolkit
 from scraping import toolkit as stoolkit
 
+from lxml.html import tostring
+
 try:
     from urllib.parse import urljoin
 except ImportError:
@@ -37,6 +39,10 @@ class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
         super(SpitsnieuwsScraper, self).__init__(exporter, max_threads=max_threads)
 
     def init(self, date):
+        """
+        @type date: datetime.date, datetime.datetime
+        @param date: date to scrape for.
+        """
         url = INDEX_URL % dict(year=date.year, month=date.month)
         
         for li in self.getdoc(url).cssselect('.ltMainContainer ul li.views-row'):
@@ -62,18 +68,15 @@ class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
 
         for li in lis:
             comm = doc.copy()
-            comm.text = li.cssselect('h3 > p')
+            comm.props.text = li.cssselect('p')[:-1]
 
             footer = li.cssselect('li > p')[-1].text_content().strip().split('|')
-            comm.date = toolkit.readDate(" ".join(footer[-3:-1]))
-            comm.author = "|".join(footer[:-3]).strip()
+            comm.props.date = toolkit.readDate(" ".join(footer[-3:-1]))
+            comm.props.author = "|".join(footer[:-3]).strip()
 
             yield comm
 
 if __name__ == '__main__':
-    import datetime
-    from scraping.exporters.builtin import JSONExporter
-
-    ex = JSONExporter('/tmp/spitsnieuws.json')
-    sc = SpitsnieuwsScraper(ex, max_threads=8)
-    sc.scrape(datetime.date(2011, 5, 5))
+    from scraping.manager import main
+    
+    main(SpitsnieuwsScraper)

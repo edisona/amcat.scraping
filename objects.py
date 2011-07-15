@@ -129,7 +129,14 @@ class Image(Document):
         
         super(Image, self).__init__(**kargs)
 
-class IndexDocument(Image):
+    @dictionary
+    def getprops(self):
+        for k,v in self.props.__dict__.items():
+            yield(k,v)
+        yield ('imagebytes', self.bytes)
+        
+
+class IndexDocument(HTMLDocument, Image):
     def __init__(self, page=None, **kargs):
         self.children = []
         self.page = page
@@ -159,4 +166,6 @@ class IndexDocument(Image):
                 coord = ", ".join(map(str, coord))
                 text.append("[%s -> %s]" % (coord, child.id))
 
-        return dict(headline=headline, text="\n".join(text), page=self.page, **self.props.__dict__)
+        return dict(headline=headline, text="\n".join(text),
+                    page=self.page, imagebytes=self.bytes.decode('iso-8859-1'),
+                    **self.props.__dict__)

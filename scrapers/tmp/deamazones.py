@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import unicode_literals, print_function, absolute_import
 ###########################################################################
 #          (C) Vrije Universiteit, Amsterdam (the Netherlands)            #
@@ -18,51 +19,11 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from scraping.processors import GoogleScraper
-from scraping.objects import HTMLDocument
-from scraping import toolkit as stoolkit
+from scraping.processors import PhpBBScraper
 
-from amcat.tools import toolkit
-
-import datetime
-from lxml import html
-
-DAYS = ('maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag', 'zondag')
-MONTHS = ('januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus',
-          'september', 'oktober', 'november', 'december')
-
-TERM = '"Gepubliceerd: %(dayname)s %(day)d %(month)s %(year)d"'
-
-class DePersScraper(GoogleScraper):
-    def __init__(self, exporter, max_threads=None):
-        super(DePersScraper, self).__init__(exporter, max_threads, domain='depers.nl')
-
-    def formatterm(self, date):
-        return TERM % {
-            'dayname' : DAYS[date.isoweekday() - 1],
-            'day' : date.day,
-            'month' : MONTHS[date.month - 1],
-            'year' : date.year
-        }
-
-    def get(self, page):
-        p = page.doc.cssselect('p.datum_nieuws')[0]
-        p.drop_tree()
-
-        info = html.tostring(p).split('<br>')
-        if len(info) == 3:
-            # Author available
-            page.props.author = html.fromstring(info[0]).text.strip()[6:]
-            page.props.date = toolkit.readDate(info[1].strip()[14:])
-        else:
-            page.props.date = toolkit.readDate(p.text.strip()[14:])
-
-        page.props.text = page.doc.cssselect('.lbox440')[0]
-        page.props.headline = page.doc.cssselect('h1')[0].text
-
-        yield page
+class DeAmazonesScraper(PhpBBScraper):
+    index_url = "http://www.de-amazones.nl/phpbbforum/"
 
 if __name__ == '__main__':
     from scraping.manager import main
-    
-    main(DePersScraper)
+    main(DeAmazonesScraper)

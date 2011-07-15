@@ -71,7 +71,7 @@ class JSONExporter(Exporter):
         super(JSONExporter, self).__init__()
 
         self.close_io = close_io
-        self.io = open(io, 'w') if type(io) in (str, unicode) else io
+        self.io = open(io, 'w') if isinstance(io, basestring) else io
         self.io.write('[\n')
 
         self.first = True

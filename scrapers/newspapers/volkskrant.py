@@ -23,13 +23,10 @@ from scraping.processors import PCMScraper
 from scraping.objects import HTMLDocument, IndexDocument
 from scraping import toolkit as stoolkit
 
+from amcat.model.scraper import Scraper
+
 LOGIN_URL = "https://caps.volkskrant.nl/service/login"
 INDEX_URL = "http://www.volkskrant.nl/vk-online/VK/%(year)d%(month)02d%(day)02d___/VKN01_001/"
-
-POST_DATA = {
-    'username' : 'nruigrok@hotmail.com',
-    'password' : '5ut5jujr'
-}
 
 try:
     from urllib import urlencode
@@ -40,12 +37,18 @@ except ImportError:
 
 class VolkskrantScraper(PCMScraper):
     def __init__(self, exporter, max_threads=None):
+        s = Scraper.objects.get(class_name=VolkskrantScraper.__name__)
+
         self.login_url = LOGIN_URL
-        self.login_data = POST_DATA
+        self.login_data = dict(username=s.email, password=s.password)
 
         super(VolkskrantScraper, self).__init__(exporter, max_threads=1)
 
     def init(self, date):
+        """
+        @type date: datetime.date, datetime.datetime
+        @param date: date to scrape for.
+        """
         index = INDEX_URL % dict(year=date.year, month=date.month, day=date.day)
 
         doc = self.getdoc(index)
@@ -94,9 +97,6 @@ class VolkskrantScraper(PCMScraper):
         return page
 
 if __name__ == '__main__':
-    import datetime
-    from scraping.exporters.builtin import JSONExporter
-
-    ex = JSONExporter('/tmp/spitsnieuws.json')
-    sc = VolkskrantScraper(ex, max_threads=2)
-    sc.scrape(datetime.date(2011, 6, 14))
+    from scraping.manager import main
+    
+    main(VolkskrantScraper)

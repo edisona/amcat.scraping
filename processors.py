@@ -29,6 +29,7 @@ Tested on:
 from lxml.html import builder
 from functools import partial
 from lxml import html
+from amcat.tools import toolkit as atoolkit
 
 try:
     from urllib import request
@@ -50,6 +51,11 @@ try:
     import queue
 except ImportError:
     import Queue as queue
+
+try:
+    unicode
+except NameError:
+    unicode = str
 
 from scraping import objects
 from scraping import toolkit
@@ -150,14 +156,17 @@ class Scraper(object):
             self.document_queue.task_done()
 
     ### SCRAPER FUNCTIONS ###
-    def init(self, date):
+    def init(self):
         return []
 
     def get(self, doc):
         return []
 
+    def update(self, *args, **kargs):
+        return []
+
     ### PUBLIC FUNCTIONS ###
-    def scrape(self, auto_quit=True, **kwargs):
+    def scrape(self, auto_quit=True, update=False, **kwargs):
         """Scrape for a certain date. Scrapers may support date=None.
 
         @type auto_quit: Boolean
@@ -165,7 +174,8 @@ class Scraper(object):
 
         @param kwargs: arguments to pass to scraper.init"""
         try:
-            for work in self.init(**kwargs):
+            func = self.update if update else self.init
+            for work in func(**kwargs):
                 if not isinstance(work, objects.Document):
                     raise(ValueError("init() should yield a Document-object not %s" % type(work)))
                 self.work_queue.put(work)
@@ -194,6 +204,7 @@ class HTTPScraper(Scraper):
         # Create session
         c = request.HTTPCookieProcessor()
         s = request.build_opener(c)
+        s.addheaders = [('User-agent', 'Mozilla/5.0')]
         request.install_opener(s)
 
         self.session = s
@@ -250,7 +261,7 @@ class HTTPScraper(Scraper):
                 enc = encoding or _getenc(fo)
                 if enc is not None:
                     # Encoding found or forced!
-                    res = str(fo.read(), encoding=enc)
+                    res = unicode(fo.read(), encoding=enc)
                     return html.fromstring(res)
                 else:
                     # Let lxml decide the encoding
@@ -298,7 +309,6 @@ class GoogleScraper(HTTPScraper):
         @param pps: pages per search"""
         super(GoogleScraper, self).__init__(exporter, max_threads)
 
-        self.session.addheaders = [('User-agent', 'Mozilla/5.0')]
         self.google_url = 'http://www.google.nl/search?'
         self.domain = domain
         self.pps = pps
@@ -323,6 +333,10 @@ class GoogleScraper(HTTPScraper):
         return None
 
     def init(self, date, page=0):
+        """
+        @type date: datetime.date, datetime.datetime
+        @param date: date to scrape for.
+        """
         term = self.formatterm(date)
         url = self._genurl(term, page)
 
@@ -334,3 +348,72 @@ class GoogleScraper(HTTPScraper):
         if len(results) == self.pps:
             for d in self.init(date, page=page+1):
                 yield d
+
+class PhpBBScraper(HTTPScraper):
+    def init(self, date=None):
+        """
+        @type date: datetime.date, datetime.datetime, None
+        @param date: date to scrape for. If None, scrape all.
+        """
+        index = self.getdoc(self.index_url)
+
+        for cat_title, cat_doc in self.get_categories(index):
+            for page in self.get_pages(cat_doc):
+                for fbg in page.cssselect('.forumbg'):
+                    if 'announcement' in fbg.get('class'):
+                        continue
+
+                    for a in fbg.cssselect('.topics > li a.topictitle'):
+                        url = urljoin(self.index_url, a.get('href'))
+                        yield objects.HTMLDocument(headline=a.text, url=url)
+
+    def get_pages(self, cat_doc):
+        """Get each page specified in pagination division."""
+        yield cat_doc # First page, is always available
+
+        if cat_doc.cssselect('.pagination .page-sep'):
+            pages = cat_doc.cssselect('.pagination a')
+            try:
+                pages = int(pages[-1].text)
+            except:
+                pages = int(pages[-2].text)
+
+            spage = cat_doc.cssselect('.pagination span a')[0]
+
+            if int(spage.text) != 1:
+                url, ppp = spage.get('href').rsplit('=', 1)
+
+                for pag in range(1, pages):
+                    yield self.getdoc(urljoin(self.index_url, url + '=%s' % (pag * int(ppp))))
+
+    def get_categories(self, index):
+        """
+        @yield: (category_name, lxml_doc)
+        """
+        hrefs = index.cssselect('.topiclist a.forumtitle')
+
+        for href in hrefs:
+            url = urljoin(self.index_url, href.get('href'))
+            yield href.text, self.getdoc(url)
+    
+    def get(self, thread):
+        fipo = True # First post?
+        for page in self.get_pages(thread.doc):
+            for post in page.cssselect('.post'):
+                ca = thread if fipo else thread.copy(parent=thread)
+
+                fipo = False
+
+                ca.props.date = atoolkit.readDate(post.cssselect('.author')[0].text_content()[-22:])
+                ca.props.text = post.cssselect('.content')
+
+                try:
+                    ca.props.author = post.cssselect('.author strong')[0].text_content()
+                except:
+                    try:
+                        ca.props.author = post.cssselect('.author a')[0].text_content()
+                    except:
+                        # Least reliable method
+                        ca.props.author = post.cssselect('.author')[0].text_content().split()[0]
+                    
+                yield ca

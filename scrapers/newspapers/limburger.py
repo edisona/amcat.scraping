@@ -23,22 +23,17 @@ from scraping.processors import PCMScraper
 from scraping.objects import HTMLDocument, IndexDocument
 from scraping import toolkit as stoolkit
 
+from amcat.model.scraper import Scraper
+
 import re
 
 SESSION_URL = "http://mgl.x-cago.net/session.do"
-
-LOGINURL1 = "http://mgl.x-cago.net/login.do?pub=ddl&r=krantdigitaal.ddl.x-cago.net"
-LOGINURL2 = "http://mgl.x-cago.net/login.do;jsessionid=%s"
-LOGINURL3 = "http://mgl.x-cago.net/session.do"
+LOGINURL = "http://mgl.x-cago.net/login.do?pub=ddl&auto=false"
 
 INDEX_URL = "http://krantdigitaal.ddl.x-cago.net/DDL/%(year)d%(month)02d%(day)02d/public/index_editions_js.html"
+INDEX_PAGE_URL = "http://krantdigitaal.ddl.x-cago.net/DDL/%(year)d%(month)02d%(day)02d/public/index.html"
 
-POST_DATA = {
-    'username' : 'nel@nelruigrok.nl',
-    'email' : 'x6waDjy',
-    "r" : "krantdigitaal.ddl.x-cago.net",
-    "pub" : "dll"
-}
+INDEX_RE = re.compile('"(DDL-.+)"')
 
 try:
     from urllib import urlencode
@@ -46,6 +41,7 @@ try:
 except ImportError:
     from urllib.parse import urlencode, urljoin
 
+DEBUG = True
 
 class LimburgerScraper(PCMScraper):
     def __init__(self, exporter, max_threads=None, editie='MA'):
@@ -64,51 +60,102 @@ class LimburgerScraper(PCMScraper):
         super(LimburgerScraper, self).__init__(exporter, max_threads=max_threads)
 
     def login(self):
-        page = self.session.open(LOGINURL1)
-        info = str(page.info())
-        sessionid = re.search("=([0-9A-F]+)", info).group(1)
+        POST_DATA = Scraper.objects.get(class_name=LimburgerScraper.__name__).get_data()
+        login1 = self.session.open(LOGINURL, urlencode(POST_DATA))
 
-        html = self.session.open(LOGINURL2 % sessionid, urlencode(POST_DATA)).read()
-        if "Sessie overschrijven" in html:
-            data = urlencode({'overwrite' : 'on', 'pub' : 'ddl'})
-            self.session.open(LOGINURL3,data).read()
+        if "Sessie overschrijven" in login1.read():
+            data = urlencode(dict(overwrite='on', pub='ddl'))
+            return self.session.open(SESSION_URL, data)
+
+    def _get_codes(self, lines, edition):
+        # See krantdigitaal.ddl.x-cago.net/DDL/20110712/public/index_editions_js.html
+        while True:
+            line = lines.pop(0)
+            if edition in line:
+                lines.pop(0)
+                break
+
+        for line in lines:
+            mo = INDEX_RE.search(line)
+            if mo:
+                yield mo.groups()[0]
+            else:
+                break
 
     def init(self, date):
-        index = INDEX_URL % {
+        """
+        @type date: datetime.date, datetime.datetime
+        @param date: date to scrape for.
+        """
+        def _search(lines, code):
+            for line in lines:
+                if code in line:
+                    return line
+
+        index_dic = {
             'year' : date.year,
             'month' : date.month,
             'day' : date.day,
         }
 
+        index = INDEX_URL % index_dic
         edition = "DDL_%s" % self.editie
         lines = list(self.getdoc(index, read=False).readlines())
+        codes = self._get_codes(lines, edition)
 
-        print(self.getdoc(index, read=False).read())
+        index = self.getdoc(INDEX_PAGE_URL % index_dic)
+        referer_codes = index.cssselect('head > script')[5].text.split('\n')
 
-        print(lines)
-        while True:
-            line = lines.pop()
-            print(line)
-            if edition in line: #s.pop():
-                lines.pop()
-                break
+        for code in codes:
+            ref = _search(referer_codes, code).split(',')[3][3:-1]
+            ref = urljoin(INDEX_PAGE_URL % index_dic, ref) + '.html'
 
-        print(lines.pop())
-
-        
-
-        return []
+            yield IndexDocument(url=ref, date=date)
 
     def get(self, ipage): # ipage --> index_page
-        return ipage
+        def _parsecoord(elem):
+            top, left = elem.get('style').split(';')[1:3]
+            top, left = int(top[4:-2]), int(top[5:-2])
+
+            table = elem.cssselect('table')[0]
+            width, height = map(int, (table.get('width'), table.get('height')))
+
+            return (left, top, width, height)
+
+        imgurl = urljoin(ipage.props.url, ipage.doc.cssselect('#pgImg')[0].get('src'))
+        ipage.bytes = self.getdoc(imgurl, lxml=False)
+        ipage.page = int(ipage.props.url.split('/')[-1].split('-')[2])
+        ipage.props.category = int(ipage.props.url.split('/')[-1].split('-')[1])
+
+        for div in ipage.doc.cssselect('body > div')[1:]:
+            page = HTMLDocument(date=ipage.props.date)
+            page.coords = [_parsecoord(el) for el in div.cssselect('div > div')]
+
+            # Get url
+            relref = div.cssselect('table')[0].get('onclick')[13:-9].strip("'")
+            page.props.url = urljoin(ipage.props.url, relref)[:-5] + '_body.html'
+
+            # Get article
+            page.doc = self.getdoc(page.props.url, encoding='latin-1') # Bad x-cago.net! >:(
+            yield self.get_article(page)
+
+            # Add article to index page
+            ipage.addchild(page)
+
+        yield ipage
 
     def get_article(self, page):
+        try:
+            page.props.author = page.doc.cssselect('td.artauthor')[0].text.strip()[5:]
+        except IndexError:
+            pass
+
+        page.props.headline = page.doc.cssselect('td.artheader')[0].text
+        page.props.text = page.doc.cssselect('p')
+
         return page
 
 if __name__ == '__main__':
-    import datetime
-    from scraping.exporters.builtin import JSONExporter
-
-    ex = JSONExporter('/tmp/spitsnieuws.json')
-    sc = LimburgerScraper(ex, max_threads=8)
-    sc.scrape(datetime.date(2011, 6, 14))
+    from scraping.manager import main
+    
+    main(LimburgerScraper)

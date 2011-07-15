@@ -23,12 +23,10 @@ from scraping.processors import PCMScraper
 from scraping.objects import HTMLDocument, IndexDocument
 from scraping import toolkit as stoolkit
 
+from amcat.model.scraper import Scraper
+
 INDEX_URL = "http://www.trouw.nl/digitalekrant/TR/%(year)d%(month)02d%(day)02d___/TRN01_001/"
 LOGIN_URL = "https://caps.trouw.nl/service/login"
-LOGIN_DATA = {
-  'username' : 'p.c.ruigrok@uva.nl',
-  'password' : 'nieuwsmonitor'
-}
 
 try:
     from urllib import urlencode
@@ -40,7 +38,7 @@ except ImportError:
 class TrouwScraper(PCMScraper):
     def __init__(self, exporter, max_threads=3):
         self.login_url = LOGIN_URL
-        self.login_data = LOGIN_DATA
+        self.login_data = Scraper.objects.get(class_name=TrouwScraper.__name__).get_data()
 
         super(TrouwScraper, self).__init__(exporter, max_threads)
 

@@ -23,13 +23,10 @@ from scraping.processors import PCMScraper
 from scraping.objects import HTMLDocument, IndexDocument
 from scraping import toolkit as stoolkit
 
+from amcat.model.scraper import Scraper
+
 LOGIN_URL = "https://login.nrc.nl/login"
 INDEX_URL = "http://digitaleeditie.nrc.nl/digitaleeditie/NH/%(year)d/%(month_minus)d/%(year)d%(month)02d%(day)02d___/1_01/"
-
-POST_DATA = {
-    'username' : 'newsmonitor',
-    'password' : 'nieuwsmonitor'
-}
 
 try:
     from urllib import urlencode
@@ -41,11 +38,15 @@ except ImportError:
 class NRCHandelsbladScraper(PCMScraper):
     def __init__(self, exporter, max_threads=None):
         self.login_url = LOGIN_URL
-        self.login_data = POST_DATA
+        self.login_data = Scraper.objects.get(class_name=NRCHandelsbladScraper.__name__).get_data()
 
         super(NRCHandelsbladScraper, self).__init__(exporter, max_threads=max_threads)
 
     def init(self, date):
+        """
+        @type date: datetime.date, datetime.datetime
+        @param date: date to scrape for.
+        """
         index = INDEX_URL % {
             'year' : date.year,
             'month' : date.month,
@@ -86,9 +87,6 @@ class NRCHandelsbladScraper(PCMScraper):
         return page
 
 if __name__ == '__main__':
-    import datetime
-    from scraping.exporters.builtin import JSONExporter
-
-    ex = JSONExporter('/tmp/spitsnieuws.json')
-    sc = NRCHandelsbladScraper(ex, max_threads=8)
-    sc.scrape(datetime.date(2011, 6, 14))
+    from scraping.manager import main
+    
+    main(NRCHandelsbladScraper)
