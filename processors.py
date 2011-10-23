@@ -22,48 +22,33 @@ from BaseScraper, which provides an multithreaded scraping environment.
 Tested on:
  * Python 2.6
  * Python 2.7
- * Python 3.1
- * Python 3.2
  """
+from django import forms
 
 from lxml.html import builder
 from functools import partial
 from lxml import html
+
 from amcat.tools import toolkit as atoolkit
+from amcat.scripts import script
 
-try:
-    from urllib import request
-    from urllib.error import URLError
-    from urllib.parse import unquote, urlencode, urljoin
-except ImportError:
-    import urllib2 as request
-    from urllib2 import URLError
-    from urllib import unquote
-    from urllib import urlencode
-    from urlparse import urljoin
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
-try:
-    import queue
-except ImportError:
-    import Queue as queue
-
-try:
-    unicode
-except NameError:
-    unicode = str
+import ConfigParser as configparser
+import Queue as queue
 
 from scraping import objects
 from scraping import toolkit
+from scraping import exporter
 
 import os, time, sys
 import datetime
 import threading
 import traceback
+import urlparse
+import logging
+import urllib, urllib2
+import urlparse
+
+log = logging.getLogger(__name__)
 
 __all__ = ['Scraper',]
 
@@ -75,7 +60,6 @@ class Worker(object):
     scraper.get will result in a documment added to the document_queue.
 
     All items in the document-queue are consumed by the commit-thread."""
-
     def __init__(self, scraper):
         self.alive = True
         self.scraper = scraper
@@ -113,28 +97,45 @@ class Worker(object):
         self.alive = False
         self.thread.join()
 
-class Scraper(object):
+class Form(forms.Form):
+    """
+    Standard form for scrapers. Each scraper-form has to inherit this one.
+    """
+    threads = forms.IntegerField(initial=1)
+
+    set = forms.CharField(max_length=100)
+    project = forms.IntegerField(initial=-1)
+
+    #dummy = forms.BooleanField(initial=False)
+
+class Scraper(script.Script):
     """Base scraper object. 
 
     Documentation:
      * TODO"""
-    def __init__(self, exporter, threads=None):
-        """
-        @type exporter: scraping.exporters.builtin.Exporter
-        @param exporter: Exporter to use. Make sure this exporter is initialized.
+    # See script documentation for documentation for these variables
+    input_type = None
+    options_form = Form
+    output_type = None
 
-        @type max_threads: integer
-        @param max_threads: maximum amount of concurrent threads. Some scrapers (filesystem)
-        may force this value to 1.
-        """
+    # If this variable is not set when initializing this class, all
+    # articles need to have a 'medium' property.
+    medium = None
+
+    def __init__(self, options=None, **kargs):
+        super(Scraper, self).__init__(options, **kargs)
         self.alive = True
-        self.exporter = exporter
 
+        # Setup queues
         self.work_queue = queue.Queue(maxsize=80)
         self.document_queue = queue.Queue(maxsize=5000)
 
+        self.exporter = exporter.Exporter(self.options['set'],
+                                          self.medium,
+                                          self.options['project'])
+
         self.workers = []
-        for i in range(threads or 5):
+        for i in range(self.options['threads']):
             w = Worker(self)
             self.workers.append(w)
 
@@ -154,6 +155,11 @@ class Scraper(object):
 
             self.exporter.commit(doc)
             self.document_queue.task_done()
+
+    ### SCRIPT FUNCTIONS ###
+    def run(self, input=None):
+        self.scrape()
+
 
     ### SCRAPER FUNCTIONS ###
     def init(self):
@@ -198,14 +204,14 @@ class Scraper(object):
             self.exporter.close()
 
 class HTTPScraper(Scraper):
-    def __init__(self, exporter, max_threads=None):
-        super(HTTPScraper, self).__init__(exporter, max_threads)
+    def __init__(self, options=None, **kargs):
+        super(HTTPScraper, self).__init__(options, **kargs)
 
         # Create session
-        c = request.HTTPCookieProcessor()
-        s = request.build_opener(c)
-        s.addheaders = [('User-agent', 'Mozilla/5.0')]
-        request.install_opener(s)
+        c = urllib2.HTTPCookieProcessor()
+        s = urllib2.build_opener(c)
+        s.addheaders = [('User-agent', 'Mozilla/5.0 (X11; Linux i686; rv:6.0.2) Gecko/20100101 Firefox/6.0.2')]
+        urllib2.install_opener(s)
 
         self.session = s
 
@@ -249,7 +255,7 @@ class HTTPScraper(Scraper):
                     if arg.strip().startswith('charset='):
                         return arg.strip()[8]
 
-        print('Retrieving "%s"' % unquote(url))
+        log.info('Retrieving "%s"' % urllib.unquote(url))
         for i in range(attempts):
             try:
                 fo = self.session.open(url)
@@ -262,11 +268,15 @@ class HTTPScraper(Scraper):
                 if enc is not None:
                     # Encoding found or forced!
                     res = unicode(fo.read(), encoding=enc)
+                    #log.info('retrv')
                     return html.fromstring(res)
                 else:
                     # Let lxml decide the encoding
-                    return html.parse(fo).getroot()
-            except URLError as e:
+                    
+                    a= html.parse(fo).getroot()
+                    #log.info('retrv')
+                    return a
+            except urllib2.URLError as e:
                 if (i+1 < attempts):
                     time.sleep(1.5)
                     continue
@@ -280,7 +290,7 @@ class PCMScraper(HTTPScraper):
         frm = toolkit.parse_form(doc.cssselect('form')[0])
         frm.update(self.login_data)
 
-        return self.session.open(self.login_url, urlencode(frm)).read()
+        return self.session.open(self.login_url, urllib.urlencode(frm)).read()
 
 class CommentScraper(Scraper):
     """A CommentScraper replaces `get` with `main` and `comments`."""
@@ -300,14 +310,14 @@ class CommentScraper(Scraper):
 
 class GoogleScraper(HTTPScraper):
     """Some websites don't have archives. Google enables us to search for those pages."""
-    def __init__(self, exporter, max_threads=None, domain=None, pps=100):
+    def __init__(self, options=None, domain=None, pps=100, **kargs):
         """
         @type domain: str
         @param domain: domain to limit search to
 
         @type pps: int
         @param pps: pages per search"""
-        super(GoogleScraper, self).__init__(exporter, max_threads)
+        super(GoogleScraper, self).__init__(options, **kargs)
 
         self.google_url = 'http://www.google.nl/search?'
         self.domain = domain
@@ -327,7 +337,7 @@ class GoogleScraper(HTTPScraper):
             'start' : page * self.pps
         }
 
-        return self.google_url + urlencode(query)
+        return self.google_url + urllib.urlencode(query)
 
     def formatterm(self, date):
         return None
@@ -350,10 +360,9 @@ class GoogleScraper(HTTPScraper):
                 yield d
 
 class PhpBBScraper(HTTPScraper):
-    def init(self, date=None):
+    def init(self):
         """
-        @type date: datetime.date, datetime.datetime, None
-        @param date: date to scrape for. If None, scrape all.
+        PhpBB forum scraper
         """
         index = self.getdoc(self.index_url)
 
@@ -364,10 +373,10 @@ class PhpBBScraper(HTTPScraper):
                         continue
 
                     for a in fbg.cssselect('.topics > li a.topictitle'):
-                        url = urljoin(self.index_url, a.get('href'))
-                        yield objects.HTMLDocument(headline=a.text, url=url)
+                        url = urlparse.urljoin(self.index_url, a.get('href'))
+                        yield objects.HTMLDocument(headline=a.text, url=url, category=cat_title)
 
-    def get_pages(self, cat_doc):
+    def get_pages(self, cat_doc, debug=False):
         """Get each page specified in pagination division."""
         yield cat_doc # First page, is always available
 
@@ -381,10 +390,16 @@ class PhpBBScraper(HTTPScraper):
             spage = cat_doc.cssselect('.pagination span a')[0]
 
             if int(spage.text) != 1:
-                url, ppp = spage.get('href').rsplit('=', 1)
+                url = list(urlparse.urlsplit(spage.get('href')))
+
+                query = dict([(k, v[-1]) for k,v in urlparse.parse_qs(url[3]).items()])
+                ppp = int(query['start'])
 
                 for pag in range(1, pages):
-                    yield self.getdoc(urljoin(self.index_url, url + '=%s' % (pag * int(ppp))))
+                    query['start'] = pag*ppp
+                    url[3] = urllib.urlencode(query)
+
+                    yield self.getdoc(urlparse.urljoin(self.index_url, urlparse.urlunsplit(url)))
 
     def get_categories(self, index):
         """
@@ -393,17 +408,14 @@ class PhpBBScraper(HTTPScraper):
         hrefs = index.cssselect('.topiclist a.forumtitle')
 
         for href in hrefs:
-            url = urljoin(self.index_url, href.get('href'))
+            url = urlparse.urljoin(self.index_url, href.get('href'))
             yield href.text, self.getdoc(url)
     
     def get(self, thread):
         fipo = True # First post?
-        for page in self.get_pages(thread.doc):
+        for page in self.get_pages(thread.doc, debug=True):
             for post in page.cssselect('.post'):
                 ca = thread if fipo else thread.copy(parent=thread)
-
-                fipo = False
-
                 ca.props.date = atoolkit.readDate(post.cssselect('.author')[0].text_content()[-22:])
                 ca.props.text = post.cssselect('.content')
 
@@ -415,5 +427,7 @@ class PhpBBScraper(HTTPScraper):
                     except:
                         # Least reliable method
                         ca.props.author = post.cssselect('.author')[0].text_content().split()[0]
-                    
+
                 yield ca
+
+                fipo = False

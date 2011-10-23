@@ -21,28 +21,30 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://www.spitsnieuws.nl/archives/%(year)s%(month)02d/"
 
-from scraping.processors import HTTPScraper, CommentScraper
+from scraping.processors import HTTPScraper, CommentScraper, Form
 from scraping.objects import HTMLDocument
-
-from amcat.tools import toolkit
 from scraping import toolkit as stoolkit
 
-from lxml.html import tostring
+from amcat.tools import toolkit
+from amcat.model.medium import Medium
 
-try:
-    from urllib.parse import urljoin
-except ImportError:
-    from urlparse import urljoin
+from lxml.html import tostring
+from urlparse import urljoin
+
+from django import forms
+
+class SpitsnieuwsForm(Form):
+    date = forms.DateField()
 
 class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
-    def __init__(self, exporter, max_threads=None):
-        super(SpitsnieuwsScraper, self).__init__(exporter, max_threads=max_threads)
+    options_form = SpitsnieuwsForm
+    medium = Medium.objects.get(name="Spits - website")
 
-    def init(self, date):
-        """
-        @type date: datetime.date, datetime.datetime
-        @param date: date to scrape for.
-        """
+    def __init__(self, options):
+        super(SpitsnieuwsScraper, self).__init__(options)
+
+    def init(self):
+        date = self.options['date']
         url = INDEX_URL % dict(year=date.year, month=date.month)
         
         for li in self.getdoc(url).cssselect('.ltMainContainer ul li.views-row'):
@@ -55,28 +57,28 @@ class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
 
     def main(self, doc):
         doc.props.headline = doc.doc.cssselect('h2.title')[0].text
-        doc.props.text = doc.doc.cssselect('div.mainArticleContainer .content p')
+        doc.props.text = doc.doc.cssselect('div.main-article-container > p')
 
-        footer = doc.doc.cssselect('p.ltLink.fltlft')[0].text.split('|')
+        footer = doc.doc.cssselect('.article-options > div')[0].text.split('|')
         doc.props.author = footer[0].strip()
         doc.props.date = toolkit.readDate(" ".join(footer[1:3]))
 
         yield doc
 
     def comments(self, doc):
-        lis = doc.doc.cssselect('ul.reactiesList.fltlft > li')
+        divs = doc.doc.cssselect('#comments .reactiesList')
 
-        for li in lis:
+        for div in divs:
             comm = doc.copy()
-            comm.props.text = li.cssselect('p')[:-1]
 
-            footer = li.cssselect('li > p')[-1].text_content().strip().split('|')
-            comm.props.date = toolkit.readDate(" ".join(footer[-3:-1]))
-            comm.props.author = "|".join(footer[:-3]).strip()
+            comm.props.text = div.cssselect('p')[0]
+            comm.props.author = div.cssselect('strong')[0].text
+
+            dt = [t.strip() for t in div.itertext() if t.strip()][-3]
+            comm.props.date = toolkit.toDate(dt)
 
             yield comm
 
 if __name__ == '__main__':
-    from scraping.manager import main
-    
-    main(SpitsnieuwsScraper)
+    from amcat.scripts import cli
+    cli.run_cli(SpitsnieuwsScraper)

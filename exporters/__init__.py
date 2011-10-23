@@ -1,2 +1,0 @@
-from builtin import *
-

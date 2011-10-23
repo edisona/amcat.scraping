@@ -56,6 +56,7 @@ class NRCHandelsbladScraper(PCMScraper):
 
         sections = self.getdoc(index).cssselect('#Sections a.thumbnail-link')
         for s in sections:
+            break
             url = urljoin(index, s.get('href'))
             yield IndexDocument(url=url, date=date)
 
@@ -88,5 +89,5 @@ class NRCHandelsbladScraper(PCMScraper):
 
 if __name__ == '__main__':
     from scraping.manager import main
-    
+
     main(NRCHandelsbladScraper)

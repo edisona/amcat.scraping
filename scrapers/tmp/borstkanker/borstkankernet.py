@@ -19,22 +19,11 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from scraping.processors import HTTPScraper
-from scraping.objects import HTMLDocument
-from scraping import toolkit as stoolkit
+from scraping.processors import PhpBBScraper
 
-INDEX_URL = ""
-
-class TemplateScraper(HTTPScraper):
-    def __init__(self, exporter, max_threads=None):
-        super(TemplateScraper, self).__init__(exporter, max_threads=max_threads)
-
-    def init(self, date):
-        return []
-
-    def get(self, page):
-        return []
+class BorstkankerNetScraper(PhpBBScraper):
+    index_url = "http://borstkanker.net/forumpatienten/index.php"
 
 if __name__ == '__main__':
     from scraping.manager import main
-    main(TemplateScraper)
+    main(BorstkankerNetScraper)

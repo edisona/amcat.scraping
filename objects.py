@@ -33,6 +33,8 @@ except ImportError:
 import copy
 import types
 
+import logging; log = logging.getLogger(__name__)
+
 class Properties(object):
     pass
 
@@ -69,7 +71,7 @@ class Document(object):
 
         return cls(parent=parent, **copy.deepcopy(self.getprops()))
 
-    def prepare(self, processor):
+    def prepare(self, processor, force=False):
         """This method prepares the document for processing. See HTMLDocument for
         sample usage."""
         pass
@@ -118,25 +120,16 @@ class HTMLDocument(Document):
         for k,v in super(HTMLDocument, self).getprops().items():
             yield (k, self._convert(v))
 
-    def prepare(self, processor):
-        if self.doc is None and hasattr(self.props, 'url'):
+    def prepare(self, processor, force=False):
+        if (self.doc is None or force) and hasattr(self.props, 'url'):
             if hasattr(processor, 'getdoc'):
                 self.doc = processor.getdoc(self.props.url)
 
-class Image(Document):
-    def __init__(self, **kargs):
-        self.bytes = None
-        
-        super(Image, self).__init__(**kargs)
 
-    @dictionary
-    def getprops(self):
-        for k,v in self.props.__dict__.items():
-            yield(k,v)
-        yield ('imagebytes', self.bytes)
-        
-
-class IndexDocument(HTMLDocument, Image):
+class IndexDocument(HTMLDocument):
+    """
+    Represents an index-page of a newspaper.
+    """
     def __init__(self, page=None, **kargs):
         self.children = []
         self.page = page
@@ -167,5 +160,4 @@ class IndexDocument(HTMLDocument, Image):
                 text.append("[%s -> %s]" % (coord, child.id))
 
         return dict(headline=headline, text="\n".join(text),
-                    page=self.page, imagebytes=self.bytes.decode('iso-8859-1'),
-                    **self.props.__dict__)
+                    page=self.page, **self.props.__dict__)

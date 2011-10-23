@@ -23,18 +23,47 @@ from scraping.processors import HTTPScraper
 from scraping.objects import HTMLDocument
 from scraping import toolkit as stoolkit
 
-INDEX_URL = ""
+from amcat.tools import toolkit
 
-class TemplateScraper(HTTPScraper):
+INDEX_URL = "http://borstkankertrefpunt.weblog.nl/page/%(page)s/"
+
+class BorstkankerTrefpuntScraper(HTTPScraper):
     def __init__(self, exporter, max_threads=None):
-        super(TemplateScraper, self).__init__(exporter, max_threads=max_threads)
+        super(BorstkankerTrefpuntScraper, self).__init__(exporter, max_threads=max_threads)
 
-    def init(self, date):
-        return []
+    def init(self):
+        """
+        """
+        for i in range(1, 10**6):
+            doc = self.getdoc(INDEX_URL % dict(page=i))
+            for post in doc.cssselect('.post'):
+                a = post.cssselect('a')[0]
+                href = a.get('href')
+                
+                yield HTMLDocument(url=a.get('href'),
+                                   headline=a.text_content())
+
+            if not doc.cssselect('.post'):
+                break
+
 
     def get(self, page):
-        return []
+        date = page.doc.cssselect('.meta')[0].text_content().replace('Door borstkankertrefpunt op', ',')
+
+        page.props.date = toolkit.readDate(date.strip())
+        page.props.text = page.doc.cssselect('.entry')
+
+        yield page
+    
+        for comm in page.doc.cssselect('#comments .comment'):
+            ca = page.copy(parent=page)
+            ca.props.author = comm.cssselect('.comment-meta.commentmetadata .fn')[0].text_content()
+            ca.props.url = comm.cssselect('a')[0].get('href')
+            ca.props.text = comm.cssselect('.comment-body')
+
+            yield ca
+
 
 if __name__ == '__main__':
-    from scraping.manager import main
-    main(TemplateScraper)
+        from scraping.manager import main
+        main(BorstkankerTrefpuntScraper)
