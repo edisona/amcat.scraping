@@ -35,9 +35,9 @@ from amcat.scripts import script
 import ConfigParser as configparser
 import Queue as queue
 
-from scraping import objects
-from scraping import toolkit
-from scraping import exporter
+from amcatscraping import objects
+from amcatscraping import toolkit
+from amcatscraping import exporter
 
 import os, time, sys
 import datetime

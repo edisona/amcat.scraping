@@ -18,7 +18,7 @@
 ###########################################################################
 """Document objects returned by various scraping-functions."""
 
-from scraping.toolkit import dictionary
+from amcatscraping.toolkit import dictionary
 from html2text import html2text
 
 from lxml import html

@@ -21,9 +21,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://www.spitsnieuws.nl/archives/%(year)s%(month)02d/"
 
-from scraping.processors import HTTPScraper, CommentScraper, Form
-from scraping.objects import HTMLDocument
-from scraping import toolkit as stoolkit
+from amcatscraping.processors import HTTPScraper, CommentScraper, Form
+from amcatscraping.objects import HTMLDocument
+from amcatscraping import toolkit as stoolkit
 
 from amcat.tools import toolkit
 from amcat.model.medium import Medium

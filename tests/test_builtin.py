@@ -4,8 +4,8 @@ import types
 import json
 import io
 
-from scraping.objects import Document
-from scraping.exporters.builtin import Exporter, JSONExporter
+from amcatscraping.objects import Document
+from amcatscraping.exporters.builtin import Exporter, JSONExporter
 
 class ExporterTest(unittest.TestCase):
     def test_id(self):

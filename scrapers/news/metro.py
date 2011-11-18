@@ -21,8 +21,8 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://www.metronieuws.nl/"
 
-from scraping.processors import HTTPScraper, CommentScraper, Form
-from scraping.objects import HTMLDocument
+from amcatscraping.processors import HTTPScraper, CommentScraper, Form
+from amcatscraping.objects import HTMLDocument
 
 from amcat.tools import toolkit
 from amcat.model.medium import Medium

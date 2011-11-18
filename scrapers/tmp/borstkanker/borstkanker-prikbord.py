@@ -19,8 +19,8 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from scraping.processors import HTTPScraper
-from scraping.objects import HTMLDocument
+from amcatscraping.processors import HTTPScraper
+from amcatscraping.objects import HTMLDocument
 
 from amcat.tools import toolkit
 
@@ -82,10 +82,10 @@ class BorstkankerPrikbordScraper(HTTPScraper):
 
 
 if __name__ == '__main__':
-    from scraping.manager import main
+    from amcatscraping.manager import main
     main(BorstkankerPrikbordScraper)
 
-    #from scraping.exporters.builtin import Exporter
+    #from amcatscraping.exporters.builtin import Exporter
     #s = BorstkankerPrikbordScraper(Exporter())
     #doc = s.getdoc("http://borstkanker.startpagina.nl/prikbord/12236848/12341549/re-kalkdeeltjes-gevonden#msg-12341549")
     #print(len(list(s.get_children(doc))))

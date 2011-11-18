@@ -1,6 +1,6 @@
 import unittest
 
-from scraping.objects import Document, HTMLDocument
+from amcatscraping.objects import Document, HTMLDocument
 
 class DocumentTest(unittest.TestCase):
     def test_set_get(self):

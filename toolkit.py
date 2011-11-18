@@ -105,7 +105,7 @@ def get_scrapers():
     @return: scraper objects
     @return type: generator
     """
-    from scraping import processors, scrapers
+    from amcatscraping import processors, scrapers
 
     PROCESSORS = (processors.Scraper,
                   processors.HTTPScraper,

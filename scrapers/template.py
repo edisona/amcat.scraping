@@ -19,9 +19,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from scraping.processors import HTTPScraper
-from scraping.objects import HTMLDocument
-from scraping import toolkit as stoolkit
+from amcatscraping.processors import HTTPScraper
+from amcatscraping.objects import HTMLDocument
+from amcatscraping import toolkit as stoolkit
 
 INDEX_URL = ""
 
@@ -36,5 +36,5 @@ class TemplateScraper(HTTPScraper):
         return []
 
 if __name__ == '__main__':
-    from scraping.manager import main
+    from amcatscraping.manager import main
     main(TemplateScraper)
