@@ -19,48 +19,61 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from scraping.processors import GoogleScraper
-from scraping.objects import HTMLDocument
-from scraping import toolkit as stoolkit
+INDEX_URL = "http://www.metronieuws.nl/"
 
+from scraping.processors import HTTPScraper, CommentScraper, Form
+from scraping.objects import HTMLDocument
+
+from amcat.tools import toolkit
+from amcat.model.medium import Medium
+
+from urlparse import urljoin
 import datetime
 
-TERM = '"Geplaatst %(year)s-%(month)02d-%(day)02d"'
+from pprint import pprint
+from lxml import etree
 
-class MetroScraper(GoogleScraper):
-    def __init__(self, exporter, max_threads=None):
-        super(MetroScraper, self).__init__(exporter, max_threads, domain='metronieuws.nl')
+class MetroForm(Form):
+    #date = forms.DateField()
+    pass
 
-    def formatterm(self, date):
-        return TERM % dict(year=date.year, month=date.month, day=date.day)
+class MetroScraper(HTTPScraper, CommentScraper):
+    """ Scrape the tweets from ikregeer.nl."""
+    options_form = MetroForm
+    try:
+        medium = Medium.objects.get(name="Metro - news")
+    except:
+        medium = Medium(name="Metro - news", language_id=4) #lang=nl
+        medium.save()
 
-    def get(self, page):
-        if '.xml' in page.props.url:
-            pass
+    def __init__(self, options):
+        super(MetroScraper, self).__init__(options)
+
+    def get_categories(self):
+        """ Yields the urls to all the pages contianing the categories.
+        """
+        doc = self.getdoc(INDEX_URL)
+        for link in doc.cssselect("ul.primary-nav.drop li a"):
+            yield urljoin(INDEX_URL, link.get("href"))
+
+    def init(self):
+        for url in self.get_categories():
+            doc = self.getdoc(url)
+            for article in doc.cssselect("h4.title a"):
+                yield HTMLDocument(url=urljoin(INDEX_URL, article.get("href")))
+
+    def main(self, doc):
+        if not doc.doc.cssselect("h1.title"):
+            doc.props.headline = doc.doc.xpath("/html/head/title")[0].text
         else:
-            page.props.section = page.props.url.split('/')[-4]
-
-            go = page.doc.cssselect('#date')[0].text.split()
-            date, time = go[-3], go[-1]
-
-            hour, minute = map(int, time.split(':'))
-            year, month, day = map(int, date.split('-'))
-
-            page.props.headline = page.doc.cssselect('title')[0].text[:-10]
-            page.props.text = page.doc.cssselect('.article-paragraph')
-
-            date = datetime.datetime(year, month, day, hour, minute)
-            if stoolkit.todate(date) == stoolkit.todate(page.props.date):
-                page.props.date = date
-
-                try:
-                    page.props.author = page.doc.cssselect('.name')[0].text
-                except IndexError:
-                    pass
-
-                yield page
+            doc.props.headline = doc.doc.cssselect("h1.title")[0].text
+        doc.props.date = datetime.datetime.strptime(
+            doc.doc.xpath("/html/head/meta[@name='date']")[0].get("content"),
+            "%Y-%m-%d")
+        doc.props.text = "".join([
+            d.text_content() for d in doc.doc.cssselect("div.article-body")])
+        yield doc
 
 if __name__ == '__main__':
-    from scraping.manager import main
-    
-    main(MetroScraper)
+    from amcat.scripts import cli
+    cli.run_cli(MetroScraper)
