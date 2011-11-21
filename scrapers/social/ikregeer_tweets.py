@@ -29,6 +29,7 @@ from amcat.model.medium import Medium
 
 from urlparse import urljoin
 
+from itertools import count
 from pprint import pprint
 from lxml import etree
 
@@ -42,7 +43,7 @@ class IkRegeerTwitterScraper(HTTPScraper, CommentScraper):
     try:
         medium = Medium.objects.get(name="Ikregeer - tweets")
     except:
-        medium = Medium(name="Ikregeer - tweets", language_id=4) #lang=nl
+        medium = Medium(name="Ikregeer - tweets", language_id=2) #lang=nl
         medium.save()
 
     def __init__(self, options):
@@ -57,18 +58,13 @@ class IkRegeerTwitterScraper(HTTPScraper, CommentScraper):
 
     def init(self):
         for url in self.get_politicians():
-            page = 1
-            done = False
-            while not done:
+            for page in count(1):
                 doc = self.getdoc(url+"?view=tweets&page=%d" % (page))
                 pprint(url+"?view=tweets?page=%d" % (page))
                 yield HTMLDocument(url=url+"?view=tweets&page=%d"%(page))
-                if doc.cssselect("a#pg-next"): 
-                    # If page has a "next page" button: continue with
-                    # the next page.
-                    page += 1
-                else:
-                    done = True
+                if not doc.cssselect("a#pg-next"): 
+                    # If page has no "next page" button.
+                    break
 
     def main(self, doc):
         #print(etree.tostring(doc.doc))
@@ -86,5 +82,5 @@ class IkRegeerTwitterScraper(HTTPScraper, CommentScraper):
             yield copy
 
 if __name__ == '__main__':
-    from amcat.scripts import cli
+    from amcat.scripts.tools import cli
     cli.run_cli(IkRegeerTwitterScraper)

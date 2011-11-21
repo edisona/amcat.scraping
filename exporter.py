@@ -20,7 +20,7 @@
 from amcat.model.article import Article
 from amcat.model.medium import Medium
 from amcat.model.project import Project
-from amcat.model.set import Set
+from amcat.model.articleset import ArticleSet
 
 ARTICLE_PROPS = [
     'date', 'section', 'pagenr', 'headline', 'byline', 'length',
@@ -33,10 +33,10 @@ class Exporter(object):
 
         if project != -1:
             self.project = Project.objects.get(id=project)
-            self.set = Set(name=set, project=self.project)
+            self.set = ArticleSet(name=set, project=self.project)
             self.set.save()
         else:
-            self.set = Set.objects.get(id=int(set))
+            self.set = ArticleSet.objects.get(id=int(set))
             self.project = self.set.project
 
     def _get_medium(self, art):
