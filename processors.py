@@ -431,3 +431,16 @@ class PhpBBScraper(HTTPScraper):
                 yield ca
 
                 fipo = False
+
+
+class ContinuousScraper(Scraper):
+    """This scraper class is meant to run continually in the background.
+    """
+    def __init__(self, options=None, **kargs):
+        super(ContinuousScraper, self).__init__(options, **kargs)
+
+        
+
+
+
+
