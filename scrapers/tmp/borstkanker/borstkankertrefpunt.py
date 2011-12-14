@@ -20,8 +20,8 @@ from __future__ import unicode_literals, print_function, absolute_import
 ###########################################################################
 
 from amcatcraping.processors import HTTPScraper
-from amcatscraping.objects import HTMLDocument
-from amcatscraping import toolkit as stoolkit
+from amcat.tools.scraping.objects import HTMLDocument
+from amcat.tools.scraping import toolkit as stoolkit
 
 from amcat.tools import toolkit
 
@@ -65,5 +65,5 @@ class BorstkankerTrefpuntScraper(HTTPScraper):
 
 
 if __name__ == '__main__':
-        from amcatscraping.manager import main
+        from amcat.tools.scraping.manager import main
         main(BorstkankerTrefpuntScraper)

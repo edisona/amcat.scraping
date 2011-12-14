@@ -21,9 +21,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://www.spitsnieuws.nl/archives/%(year)s%(month)02d/"
 
-from amcatscraping.processors import HTTPScraper, CommentScraper, Form
-from amcatscraping.objects import HTMLDocument
-from amcatscraping import toolkit as stoolkit
+from amcat.tools.scraping.processors import HTTPScraper, CommentScraper, Form
+from amcat.tools.scraping.objects import HTMLDocument
+from amcat.tools.scraping import toolkit as stoolkit
 
 from amcat.tools import toolkit
 from amcat.model.medium import Medium
@@ -32,6 +32,9 @@ from lxml.html import tostring
 from urlparse import urljoin
 
 from django import forms
+
+import logging
+log = logging.getLogger(__name__)
 
 class SpitsnieuwsForm(Form):
     date = forms.DateField()
@@ -66,6 +69,8 @@ class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
         yield doc
 
     def comments(self, doc):
+        log.info(doc.parent)
+
         divs = doc.doc.cssselect('#comments .reactiesList')
 
         for div in divs:
@@ -80,5 +85,5 @@ class SpitsnieuwsScraper(HTTPScraper, CommentScraper):
             yield comm
 
 if __name__ == '__main__':
-    from amcat.scripts import cli
+    from amcat.scripts.tools import cli
     cli.run_cli(SpitsnieuwsScraper)

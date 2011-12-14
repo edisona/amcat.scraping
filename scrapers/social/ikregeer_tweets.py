@@ -21,8 +21,8 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://ikregeer.nl/personen/"
 
-from amcatscraping.processors import HTTPScraper, CommentScraper, Form
-from amcatscraping.objects import HTMLDocument
+from amcat.tools.scraping.processors import HTTPScraper, CommentScraper, Form
+from amcat.tools.scraping.objects import HTMLDocument
 
 from amcat.tools import toolkit
 from amcat.model.medium import Medium

@@ -19,11 +19,11 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from amcatscraping.processors import PhpBBScraper
+from amcat.tools.scraping.processors import PhpBBScraper
 
 class DeAmazonesScraper(PhpBBScraper):
     index_url = "http://www.de-amazones.nl/phpbbforum/"
 
 if __name__ == '__main__':
-    from amcatscraping.manager import main
+    from amcat.tools.scraping.manager import main
     main(DeAmazonesScraper)

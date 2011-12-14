@@ -21,8 +21,8 @@ from __future__ import unicode_literals, print_function, absolute_import
 
 INDEX_URL = "http://www.depers.nl/"
 
-from amcatscraping.processors import HTTPScraper, CommentScraper, Form
-from amcatscraping.objects import HTMLDocument
+from amcat.tools.scraping.processors import HTTPScraper, CommentScraper, Form
+from amcat.tools.scraping.objects import HTMLDocument
 
 from amcat.tools import toolkit
 from amcat.model.medium import Medium
@@ -80,5 +80,5 @@ class DePersScraper(HTTPScraper, CommentScraper):
         yield doc
 
 if __name__ == '__main__':
-    from amcat.scripts import cli
+    from amcat.scripts.tools import cli
     cli.run_cli(DePersScraper)

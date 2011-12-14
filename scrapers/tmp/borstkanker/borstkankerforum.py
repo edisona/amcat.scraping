@@ -19,9 +19,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from amcatscraping.processors import PhpBBScraper
-from amcatscraping.processors import urlencode
-from amcatscraping.objects import HTMLDocument
+from amcat.tools.scraping.processors import PhpBBScraper
+from amcat.tools.scraping.processors import urlencode
+from amcat.tools.scraping.objects import HTMLDocument
 
 INDEX_URL = "http://www.borstkankerforum.nl/forum/"
 
@@ -135,5 +135,5 @@ class BorstkankerForumScraper(PhpBBScraper):
         return []
 
 if __name__ == '__main__':
-    from amcatscraping.manager import main
+    from amcat.tools.scraping.manager import main
     main(BorstkankerForumScraper)

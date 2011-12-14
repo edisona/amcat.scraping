@@ -19,11 +19,11 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from amcatscraping.processors import PhpBBScraper
+from amcat.tools.scraping.processors import PhpBBScraper
 
 class BorstkankerNetScraper(PhpBBScraper):
     index_url = "http://borstkanker.net/forumpatienten/index.php"
 
 if __name__ == '__main__':
-    from amcatscraping.manager import main
+    from amcat.tools.scraping.manager import main
     main(BorstkankerNetScraper)

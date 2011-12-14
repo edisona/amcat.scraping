@@ -19,8 +19,8 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from amcatscraping.processors import HTTPScraper
-from amcatscraping.objects import Document
+from amcat.tools.scraping.processors import HTTPScraper
+from amcat.tools.scraping.objects import Document
 
 from amcat.model.medium import Medium
 from amcat.tools import toolkit
@@ -97,11 +97,11 @@ class UGScraper(HTTPScraper):
 
 
 if __name__ == '__main__':
-    #from amcatscraping.manager import main
+    #from amcat.tools.scraping.manager import main
     #main(BorstkankerPrikbordScraper)
 
     import logging; log=logging.getLogger(__name__)
 
-    from amcatscraping.exporters.builtin import JSONExporter
+    from amcat.tools.scraping.exporters.builtin import JSONExporter
     s = UGScraper(JSONExporter('/home/martijn/embeds.json'), max_threads=10)
     s.scrape()

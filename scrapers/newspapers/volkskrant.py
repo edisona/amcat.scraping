@@ -19,9 +19,9 @@ from __future__ import unicode_literals, print_function, absolute_import
 # License along with AmCAT.  If not, see <http://www.gnu.org/licenses/>.  #
 ###########################################################################
 
-from amcatscraping.processors import PCMScraper
-from amcatscraping.objects import HTMLDocument, IndexDocument
-from amcatscraping import toolkit as stoolkit
+from amcat.tools.scraping.processors import PCMScraper
+from amcat.tools.scraping.objects import HTMLDocument, IndexDocument
+from amcat.tools.scraping import toolkit as stoolkit
 
 from amcat.model.scraper import Scraper
 
@@ -97,6 +97,6 @@ class VolkskrantScraper(PCMScraper):
         return page
 
 if __name__ == '__main__':
-    from amcatscraping.manager import main
+    from amcat.tools.scraping.manager import main
     
     main(VolkskrantScraper)
